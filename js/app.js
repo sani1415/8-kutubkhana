@@ -793,8 +793,57 @@ const App = {
         document.getElementById('csv-file-input').click();
     },
 
-    handleCSVImport(e) {
+    _isExcelImportFile(file) {
+        const name = (file?.name || '').toLowerCase();
+        return /\.(xlsx|xlsm|xls)$/.test(name);
+    },
+
+    _parseExcelWorkbookToCSV(arrayBuffer) {
+        if (typeof XLSX === 'undefined') {
+            throw new Error('مكتبة Excel غير متوفرة.');
+        }
+        const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: false });
+        const sheetName = wb.SheetNames[0];
+        if (!sheetName) {
+            throw new Error('الملف لا يحتوي على أوراق عمل.');
+        }
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+        if (!rows.length) {
+            throw new Error('ورقة العمل فارغة.');
+        }
+        const quoteCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+        return rows
+            .map(row => (Array.isArray(row) ? row : []).map(quoteCell).join(','))
+            .join('\n');
+    },
+
+    _readBookImportText(file) {
+        if (this._isExcelImportFile(file)) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        resolve(this._parseExcelWorkbookToCSV(reader.result));
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = () => reject(new Error('تعذر قراءة ملف Excel.'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('تعذر قراءة ملف CSV.'));
+            reader.readAsText(file, 'UTF-8');
+        });
+    },
+
+    async handleCSVImport(e) {
         const file = e.target.files[0];
+        e.target.value = '';
         if (!file) return;
 
         const overlay = document.getElementById('csv-import-overlay');
@@ -805,52 +854,49 @@ const App = {
             if (progressBar) progressBar.style.width = (total ? Math.min(100, (100 * done) / total) : 0) + '%';
         };
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            overlay.classList.add('active');
-            overlay.setAttribute('aria-hidden', 'false');
-            if (progressText) progressText.textContent = '0 من 0';
-            if (progressBar) progressBar.style.width = '0%';
-            try {
-                const result = await Promise.resolve(DataManager.importBooksFromCSV(event.target.result, onProgress));
-                if (result.success) {
-                    const totalBooks = DataManager.getBooks().length;
-                    let msg = '✅ تم استيراد CSV بنجاح!\n\n';
-                    msg += `📥 نتائج الاستيراد:\n`;
-                    msg += `• كتب جديدة: ${result.count}\n`;
-                    msg += `• كتب محدّثة: ${result.updatedCount} (تغيّرت بياناتها)\n`;
-                    msg += `• بدون تغيير: ${result.unchangedCount || 0} (نفس البيانات)\n`;
-                    if (result.skipped > 0) msg += `• تم تخطيها: ${result.skipped} (حقول ناقصة)\n`;
-                    if (result.failCount > 0) msg += `• فشل: ${result.failCount}\n`;
-                    msg += `\n📚 إجمالي الكتب الآن: ${totalBooks}`;
-                    if (result.updateDetails && result.updateDetails.length > 0) {
-                        msg += `\n\n📝 تفاصيل التحديثات:`;
-                        result.updateDetails.slice(0, 10).forEach((item, idx) => {
-                            msg += `\n\n${idx + 1}. "${item.bookName}" - ${item.author}`;
-                            item.changes.forEach(c => {
-                                const oldVal = c.old || '(فارغ)';
-                                const newVal = c.new || '(فارغ)';
-                                msg += `\n   • ${c.field}: "${oldVal}" ← "${newVal}"`;
-                            });
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+        if (progressText) progressText.textContent = '0 من 0';
+        if (progressBar) progressBar.style.width = '0%';
+        try {
+            const importText = await this._readBookImportText(file);
+            const result = await Promise.resolve(DataManager.importBooksFromCSV(importText, onProgress));
+            if (result.success) {
+                const totalBooks = DataManager.getBooks().length;
+                const fileLabel = this._isExcelImportFile(file) ? 'Excel' : 'CSV';
+                let msg = `✅ تم استيراد ${fileLabel} بنجاح!\n\n`;
+                msg += `📥 نتائج الاستيراد:\n`;
+                msg += `• كتب جديدة: ${result.count}\n`;
+                msg += `• كتب محدّثة: ${result.updatedCount} (تغيّرت بياناتها)\n`;
+                msg += `• بدون تغيير: ${result.unchangedCount || 0} (نفس البيانات)\n`;
+                if (result.skipped > 0) msg += `• تم تخطيها: ${result.skipped} (حقول ناقصة)\n`;
+                if (result.failCount > 0) msg += `• فشل: ${result.failCount}\n`;
+                msg += `\n📚 إجمالي الكتب الآن: ${totalBooks}`;
+                if (result.updateDetails && result.updateDetails.length > 0) {
+                    msg += `\n\n📝 تفاصيل التحديثات:`;
+                    result.updateDetails.slice(0, 10).forEach((item, idx) => {
+                        msg += `\n\n${idx + 1}. "${item.bookName}" - ${item.author}`;
+                        item.changes.forEach(c => {
+                            const oldVal = c.old || '(فارغ)';
+                            const newVal = c.new || '(فارغ)';
+                            msg += `\n   • ${c.field}: "${oldVal}" ← "${newVal}"`;
                         });
-                        if (result.updateDetails.length > 10) {
-                            msg += `\n\n... و ${result.updateDetails.length - 10} كتب أخرى`;
-                        }
+                    });
+                    if (result.updateDetails.length > 10) {
+                        msg += `\n\n... و ${result.updateDetails.length - 10} كتب أخرى`;
                     }
-                    alert(msg);
-                    this.navigateTo('books');
-                } else {
-                    alert(result.message);
                 }
-            } catch (err) {
-                alert('حدث خطأ أثناء الاستيراد: ' + (err?.message || err));
-            } finally {
-                overlay.classList.remove('active');
-                overlay.setAttribute('aria-hidden', 'true');
+                alert(msg);
+                this.navigateTo('books');
+            } else {
+                alert(result.message);
             }
-        };
-        reader.readAsText(file, 'UTF-8');
-        e.target.value = '';
+        } catch (err) {
+            alert('حدث خطأ أثناء الاستيراد: ' + (err?.message || err));
+        } finally {
+            overlay.classList.remove('active');
+            overlay.setAttribute('aria-hidden', 'true');
+        }
     },
 
     // ========== LOANS ==========
