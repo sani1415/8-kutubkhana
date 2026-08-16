@@ -1,0 +1,253 @@
+/* === Document Archive === */
+.archive-desc {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
+    font-size: 0.95rem;
+}
+
+.archive-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.archive-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-light);
+}
+
+.archive-card-title {
+    font-size: 1.05rem;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+}
+
+.archive-card-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.archive-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-sm);
+}
+
+.archive-meta-tag {
+    background: var(--primary-lighter);
+    color: var(--primary-color);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+}
+
+.archive-card .item-actions {
+    margin-top: var(--spacing-sm);
+}
+
+/* Archive toolbar: same look as other filter bars */
+.archive-toolbar {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+    flex-wrap: wrap;
+}
+.archive-toolbar .filter-input {
+    width: auto;
+    min-width: 180px;
+    max-width: 280px;
+}
+.archive-toolbar .filter-select {
+    width: auto;
+    min-width: 140px;
+    max-width: 180px;
+}
+
+.document-view-meta {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+.document-view-meta p {
+    margin-bottom: var(--spacing-xs);
+}
+.document-view-meta p:last-child {
+    margin-bottom: 0;
+}
+.document-view-book-name {
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Document view modal: wider so book name and content fit */
+.modal.modal--document-view {
+    max-width: 640px;
+}
+.modal.modal--document-view .modal-body {
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+.document-view-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.document-preview-img {
+    max-width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-light);
+}
+
+.document-file-link {
+    display: inline-block;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--primary-light);
+    color: var(--primary-color);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+}
+
+.document-file-link:hover {
+    background: var(--primary-lighter);
+}
+
+/* Container for linked docs in edit-book modal: avoid oversized box */
+.form-group.linked-docs-wrap {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+}
+
+.linked-docs-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.linked-docs-list li {
+    margin-bottom: var(--spacing-xs);
+}
+
+.linked-docs-list .btn-link {
+    display: block;
+    width: 100%;
+    text-align: right;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    text-decoration: underline;
+    padding: var(--spacing-xs) 0;
+    font-size: inherit;
+}
+
+.linked-docs-list .btn-link:hover {
+    color: var(--primary-hover);
+}
+
+/* === Book selector (search + numbered list) in document forms === */
+.document-book-field .book-select-wrap {
+    position: relative;
+}
+.document-book-field .book-select-trigger {
+    width: 100%;
+    text-align: right;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    min-height: 2.25rem;
+}
+.document-book-field .book-select-trigger:hover {
+    border-color: var(--primary-color);
+}
+.document-book-field .book-select-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    margin-top: var(--spacing-xs);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    z-index: 10;
+    overflow: hidden;
+}
+.document-book-field .book-select-dropdown.open {
+    display: block;
+}
+.document-book-field .book-select-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: var(--spacing-sm);
+    border: none;
+    border-bottom: 1px solid var(--border-light);
+    border-radius: 0;
+    font-size: 0.9rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+.document-book-field .book-select-search:focus {
+    outline: none;
+}
+.document-book-field .book-select-search::placeholder {
+    color: var(--text-muted);
+}
+.document-book-field .book-select-list {
+    max-height: 220px;
+    overflow-y: auto;
+    padding: var(--spacing-xs);
+}
+.document-book-field .book-select-item {
+    padding: var(--spacing-sm);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+.document-book-field .book-select-item:hover {
+    background: var(--primary-lighter);
+    color: var(--primary-color);
+}
+.document-book-field .book-select-empty {
+    padding: var(--spacing-md);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+.document-book-field .book-select-item.book-select-clear {
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: var(--spacing-xs);
+}
+.document-book-field .book-select-item.book-select-clear:hover {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}

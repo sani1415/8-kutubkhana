@@ -1,0 +1,58 @@
+/* === Print Styles === */
+@media print {
+    .top-navbar,
+    .sidebar,
+    .mobile-nav-menu,
+    .mobile-nav-backdrop,
+    .back-to-top,
+    .action-btns,
+    .form-actions,
+    .modal-overlay {
+        display: none !important;
+    }
+
+    .main-content {
+        padding: 0;
+    }
+
+    .page {
+        display: block !important;
+    }
+}
+
+/* === Scrollbar Styling === */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* === Selection Styling === */
+::selection {
+    background: var(--primary-light);
+    color: var(--text-primary);
+}
+
+/* === Highlight book name on hover === */
+.book-name-highlight {
+    color: var(--primary-color);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.book-name-highlight:hover {
+    text-decoration: underline;
+}

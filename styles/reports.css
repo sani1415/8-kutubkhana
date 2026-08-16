@@ -1,0 +1,191 @@
+/* === Reports Page === */
+.reports-desc {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
+    font-size: 0.95rem;
+}
+
+/* Reports page: compact summary + scrollable table area */
+.reports-page .reports-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.report-stat-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    min-width: 0;
+    text-align: center;
+    min-height: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.report-stat-card.highlight {
+    background: var(--primary-lighter);
+    border-color: var(--primary-color);
+}
+
+.report-stat-card.small {
+    /* same size as others now */
+}
+
+.report-stat-card.clickable {
+    cursor: pointer;
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.report-stat-card.clickable:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.report-stat-card.clickable.active {
+    box-shadow: 0 0 0 2px var(--primary-color);
+}
+
+.report-stat-value {
+    display: block;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.report-stat-card.highlight .report-stat-value {
+    color: var(--primary-color);
+}
+
+.report-stat-label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    line-height: 1.2;
+}
+
+.reports-table-wrap {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 320px);
+    min-height: 280px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+    overflow: hidden;
+}
+
+.reports-page .reports-table-wrap .table-container {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-radius: 0;
+    border: none;
+}
+
+/* Sticky header: reports table */
+.reports-page .reports-table-wrap .table-container .data-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg-secondary);
+    box-shadow: 0 1px 0 var(--border-color);
+}
+
+.reports-page .reports-table-wrap .pagination {
+    flex-shrink: 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+}
+
+.reports-page .reports-footer {
+    flex-shrink: 0;
+    padding: var(--spacing-xs) var(--spacing-md);
+    margin: 0;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+}
+
+/* Books list page: scrollable table container (same pattern as reports) */
+.books-page .books-table-wrap {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 240px);
+    min-height: 320px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+    overflow: hidden;
+}
+
+.books-page .books-table-wrap .table-container {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-radius: 0;
+    border: none;
+}
+
+/* Sticky header: books table */
+.books-page .books-table-wrap .table-container .data-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg-secondary);
+    box-shadow: 0 1px 0 var(--border-color);
+}
+
+.books-page .books-table-wrap .pagination {
+    flex-shrink: 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+}
+
+.reports-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.reports-toolbar label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.reports-toolbar .filter-select {
+    min-width: 220px;
+}
+
+.missing-fields-cell {
+    max-width: 280px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.reports-footer {
+    margin-top: var(--spacing-sm);
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+/* Settings: user management */
+.settings-admin-wrap .users-section .data-table { margin-top: 0; }
+.role-badge { display: inline-block; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 500; }
+.role-badge.role-admin { background: rgba(90, 138, 122, 0.2); color: var(--primary-color); }
+.role-badge.role-librarian { background: rgba(106, 138, 154, 0.2); color: var(--info-color); }
+.role-badge.role-viewer { background: var(--border-light); color: var(--text-secondary); }
+.user-role-select { padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-sm); margin-left: var(--spacing-sm); }
+.settings-no-access { text-align: center; padding: var(--spacing-xl); color: var(--text-secondary); }
+.settings-no-access i { font-size: 2rem; margin-bottom: var(--spacing-sm); display: block; color: var(--text-muted); }

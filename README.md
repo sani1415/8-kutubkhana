@@ -8,15 +8,35 @@ Full-featured library management system with multi-language support (Arabic, Ben
 kutubkhana/
 ├── index.html              # Main page
 ├── styles/
-│   └── main.css            # Styles (RTL support)
+│   ├── base.css            # Theme variables, reset, login, loading
+│   ├── layout.css          # App layout, navigation, pages
+│   ├── components.css      # Stats, tables, forms, buttons
+│   ├── management.css      # Categories, publishers, members
+│   ├── diary.css            # Library diary
+│   ├── reports.css          # Reports
+│   ├── modals.css           # Modals and shared overlays
+│   ├── books.css            # Mobile book list
+│   ├── scan.css             # Book scanning
+│   ├── responsive.css       # Responsive rules
+│   ├── utilities.css        # Print, scrollbar, selection, hover
+│   └── archive.css          # Document archive and book selector
 ├── js/
-│   ├── data.js             # Data layer (localStorage)
-│   ├── app.js              # Main app and navigation
-│   ├── books.js            # Books management
-│   ├── members.js          # Members management
-│   ├── loans.js            # Loans management
-│   ├── diary.js            # Library diary
-│   └── excel.js             # Excel import/export
+│   ├── app.js              # Core state, navigation, shared UI, events
+│   ├── app-init.js         # DOM-ready bootstrap
+│   ├── data.js             # LocalStorage data layer
+│   ├── supabase-data.js    # Supabase data layer
+│   ├── supabase-client.js  # Supabase client setup
+│   └── features/
+│       ├── auth.js         # Authentication and user management
+│       ├── books.js        # Books and CSV/Excel import/export
+│       ├── loans.js        # Loan management
+│       ├── diary.js        # Library diary
+│       ├── members.js      # Member management
+│       ├── taxonomy.js     # Categories, authors, publishers
+│       ├── archive.js      # Document archive
+│       ├── reports.js      # Missing-data reports
+│       ├── settings.js     # Settings and backup
+│       └── scan.js         # AI book scanning
 ├── plan.md                 # Project plan
 └── README.md               # This file
 ```
@@ -212,6 +232,17 @@ Then try again (`npm run apk` or `npm run android`).
    The build creates `js/config.js` from these variables so the app works with Supabase on the deployed URL.
 
 Without these variables, the app on Vercel will use **localStorage** only (data stays in the browser).
+
+## 🤖 Scan Books (Gemini AI) – server-side key
+
+The book-scan feature calls the **`scan-books` Supabase Edge Function**. The Gemini API key is stored as a Supabase secret and never reaches the browser. The function requires a logged-in user with role **admin** or **librarian**.
+
+To update/redeploy:
+
+```bash
+supabase secrets set GEMINI_API_KEY=<your-key>   # once, or when rotating the key
+supabase functions deploy scan-books
+```
 
 ## 🎯 Next steps (future)
 

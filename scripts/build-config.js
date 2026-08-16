@@ -1,13 +1,14 @@
 /**
  * Generates js/config.js from environment variables (used on Vercel/build).
  * Set SUPABASE_URL and SUPABASE_ANON_KEY in Vercel → Settings → Environment Variables.
+ * (Gemini key is intentionally NOT included - it lives in the scan-books
+ * Supabase Edge Function secret, never in the browser.)
  */
 const fs = require('fs');
 const path = require('path');
 
 const url = process.env.SUPABASE_URL || '';
 const key = process.env.SUPABASE_ANON_KEY || '';
-const geminiKey = process.env.GEMINI_API_KEY || '';
 const outPath = path.join(__dirname, '..', 'js', 'config.js');
 
 // On Vercel env is set; locally skip overwriting if no env so we don't wipe manual config.js
@@ -21,7 +22,6 @@ const content = `/**
  */
 window.SUPABASE_URL = ${JSON.stringify(url)};
 window.SUPABASE_ANON_KEY = ${JSON.stringify(key)};
-window.GEMINI_API_KEY = ${JSON.stringify(geminiKey)};
 `;
 
 fs.mkdirSync(path.dirname(outPath), { recursive: true });

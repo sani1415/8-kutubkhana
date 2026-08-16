@@ -1,0 +1,291 @@
+/* === Color Theme Variables === */
+:root {
+    /* Muted Green Theme */
+    --primary-color: #5a8a7a;
+    --primary-hover: #4a7a6a;
+    --primary-light: rgba(90, 138, 122, 0.1);
+    --primary-lighter: rgba(90, 138, 122, 0.05);
+    
+    /* Background Colors */
+    --bg-color: #f5f5f0;
+    --bg-secondary: #eaeae5;
+    --card-bg: #ffffff;
+    
+    /* Text Colors */
+    --text-primary: #2d3a36;
+    --text-secondary: #5a6a64;
+    --text-muted: #8a9a94;
+    
+    /* Border & Shadows */
+    --border-color: #d5d5d0;
+    --border-light: #e5e5e0;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.08);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+    
+    /* Status Colors */
+    --success-color: #5a9a7a;
+    --warning-color: #d4a574;
+    --danger-color: #c4746a;
+    --info-color: #6a8a9a;
+    
+    /* Stat Card Colors */
+    --stat-books: #5a8a7a;
+    --stat-authors: #6a8a9a;
+    --stat-categories: #8a7a9a;
+    --stat-available: #5a9a7a;
+    --stat-issued: #d4a574;
+    --stat-members: #7a8a5a;
+    --stat-publishers: #8a7a6a;
+    
+    /* Fonts */
+    --font-primary: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+    --font-secondary: 'Amiri', Georgia, serif;
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+}
+
+/* === Reset & Base Styles === */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-primary);
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    direction: rtl;
+}
+
+/* === Login Page === */
+.login-page {
+    display: none;
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-secondary) 100%);
+    justify-content: center;
+    align-items: center;
+}
+
+.login-page.active {
+    display: flex;
+}
+
+.app-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-secondary) 100%);
+    transition: opacity 0.4s ease;
+}
+.app-loading.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+.app-loading-content {
+    text-align: center;
+    color: var(--text-secondary);
+}
+.app-loading-title {
+    font-family: var(--font-secondary);
+    font-size: 1.6rem;
+    color: var(--primary-color);
+    margin: 0 0 var(--spacing-sm);
+}
+.app-loading-content p {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+/* --- Animated open book (library-themed loader) --- */
+.loading-book {
+    position: relative;
+    width: 96px;
+    height: 64px;
+    margin: 0 auto var(--spacing-lg);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    perspective: 600px;
+}
+.loading-book-pages {
+    position: absolute;
+    inset: 6px 8px;
+}
+.loading-book-pages::before,
+.loading-book-pages::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    background: #fbfaf3;
+}
+.loading-book-pages::before {
+    left: 0;
+    border-radius: 3px 0 0 3px;
+    box-shadow: inset -3px 0 5px rgba(0, 0, 0, 0.06);
+}
+.loading-book-pages::after {
+    right: 0;
+    border-radius: 0 3px 3px 0;
+    box-shadow: inset 3px 0 5px rgba(0, 0, 0, 0.06);
+}
+.loading-page {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
+    background: #ffffff;
+    border-radius: 3px 0 0 3px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transform-origin: right center;
+    animation: loading-flip 1.8s ease-in-out infinite;
+}
+.loading-page.page-2 {
+    animation-delay: 0.9s;
+    background: #fdfcf7;
+}
+@keyframes loading-flip {
+    0% {
+        transform: rotateY(0deg);
+    }
+    60%, 100% {
+        transform: rotateY(-180deg);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .loading-page {
+        animation: none;
+        opacity: 0;
+    }
+}
+
+.login-container {
+    width: 100%;
+    max-width: 420px;
+    padding: var(--spacing-xl);
+}
+
+.login-container h1 {
+    text-align: center;
+    color: var(--primary-color);
+    font-size: 2rem;
+    margin-bottom: var(--spacing-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.login-container h1 i {
+    font-size: 1.8rem;
+}
+
+.login-form-wrapper {
+    background: var(--card-bg);
+    padding: var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-light);
+}
+
+.login-form-wrapper .form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.login-form-wrapper label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.login-form-wrapper input {
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-family: inherit;
+    transition: all 0.3s ease;
+}
+
+.login-form-wrapper input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.login-form-wrapper .form-actions {
+    margin-top: var(--spacing-lg);
+}
+
+.login-form-wrapper .btn {
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-lg);
+}
+
+.login-forgot-wrap {
+    margin-top: var(--spacing-md);
+    text-align: center;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-decoration: underline;
+    padding: 0;
+}
+
+.btn-link:hover {
+    color: var(--primary-hover);
+}
+
+.forgot-password-form {
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border-light);
+}
+
+.forgot-password-form .form-group {
+    margin-bottom: var(--spacing-sm);
+}
+
+.forgot-password-form .btn {
+    width: auto;
+    margin-left: var(--spacing-sm);
+}
+
+.change-password-form {
+    max-width: 360px;
+}
+
+.change-password-form .form-group {
+    margin-bottom: var(--spacing-md);
+}

@@ -1,0 +1,277 @@
+/* === Scan Books Page (Gemini AI) === */
+.scan-desc {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
+    font-size: 0.95rem;
+}
+
+.scan-step { margin-bottom: var(--spacing-lg); }
+
+/* Batch defaults */
+.scan-batch-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+}
+.scan-batch-fields .form-group {
+    margin-bottom: 0;
+}
+.scan-batch-fields input {
+    width: 100%;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+    font-family: inherit;
+    font-size: 0.92rem;
+}
+.scan-batch-fields input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+.scan-batch-hint {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+/* Upload area */
+.scan-upload-area {
+    border: 2px dashed var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl) var(--spacing-lg);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--card-bg);
+    position: relative;
+}
+.scan-upload-area:hover,
+.scan-upload-area.drag-over {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+}
+.scan-file-hidden {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.scan-upload-content i {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-sm);
+}
+.scan-upload-content p {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+.scan-upload-hint {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+/* Preview grid */
+.scan-preview-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: var(--spacing-md);
+}
+.scan-preview-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+}
+.scan-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.scan-preview-remove {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--danger-color);
+    color: #fff;
+    border: none;
+    font-size: 0.65rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.scan-preview-item:hover .scan-preview-remove {
+    opacity: 1;
+}
+.scan-preview-status {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 3px;
+    text-align: center;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: #fff;
+}
+.scan-preview-status.pending { background: rgba(0,0,0,0.5); }
+.scan-preview-status.processing { background: var(--primary-color); }
+.scan-preview-status.done { background: var(--success-color); }
+.scan-preview-status.error { background: var(--danger-color); }
+
+.scan-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+/* Processing step */
+.scan-progress-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    text-align: center;
+    max-width: 450px;
+    margin: var(--spacing-xl) auto;
+}
+.scan-progress-icon {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-md);
+}
+.scan-progress-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+}
+.scan-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: var(--spacing-sm);
+}
+.scan-progress-fill {
+    height: 100%;
+    background: var(--primary-color);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+.scan-progress-detail {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* Review step */
+.scan-review-header {
+    margin-bottom: var(--spacing-md);
+}
+.scan-review-header h2 {
+    color: var(--success-color);
+    margin-bottom: 4px;
+}
+.scan-review-hint {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+}
+.scan-review-table-wrap {
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: var(--spacing-md);
+    background: var(--card-bg);
+}
+.scan-review-table-wrap .table-container {
+    overflow-x: auto;
+    max-height: calc(100vh - 340px);
+}
+.scan-review-table-wrap .data-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg-secondary);
+    box-shadow: 0 1px 0 var(--border-color);
+}
+.scan-review-table-wrap .data-table td input {
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 4px 6px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    border-radius: 4px;
+    transition: border-color 0.15s;
+}
+.scan-review-table-wrap .data-table td input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background: var(--card-bg);
+}
+.scan-review-table-wrap .data-table td input:hover {
+    border-color: var(--border-light);
+}
+.scan-review-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+/* Done step */
+.scan-done-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    text-align: center;
+    max-width: 450px;
+    margin: var(--spacing-xl) auto;
+}
+.scan-done-icon {
+    font-size: 3rem;
+    color: var(--success-color);
+    margin-bottom: var(--spacing-md);
+}
+.scan-done-card h2 {
+    margin-bottom: var(--spacing-sm);
+}
+.scan-done-card p {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+.scan-done-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Scan review row delete */
+.scan-row-delete {
+    background: none;
+    border: none;
+    color: var(--danger-color);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+.scan-row-delete:hover {
+    background: rgba(196, 106, 106, 0.1);
+}

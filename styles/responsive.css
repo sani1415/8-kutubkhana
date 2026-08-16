@@ -1,0 +1,157 @@
+/* === Responsive Design === */
+@media (max-width: 1024px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .scan-batch-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .mobile-menu-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .sidebar {
+        display: none;
+    }
+
+    .main-content {
+        padding: var(--spacing-md);
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.6rem;
+    }
+
+    .stat-card {
+        padding: 0.75rem;
+        flex-direction: column;
+        gap: 0.4rem;
+        text-align: center;
+        border-radius: 10px;
+    }
+
+    .stat-card .stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+
+    .stat-content h3 {
+        font-size: 0.75rem;
+        margin-bottom: 0.15rem;
+    }
+
+    .stat-number {
+        font-size: 1.35rem;
+    }
+
+    #dashboard-page h1 {
+        font-size: 1.2rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .data-table {
+        min-width: 800px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .add-item {
+        flex-direction: column;
+    }
+
+    .add-item input {
+        width: 100%;
+    }
+
+    .item-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+    }
+
+    .item-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .pagination {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .back-to-top {
+        bottom: 20px;
+        left: 20px;
+        width: 45px;
+        height: 45px;
+    }
+
+    /* Show mobile view, hide desktop table */
+    .books-page .books-table-wrap {
+        display: none !important;
+    }
+    .books-mobile-view {
+        display: block;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        gap: 0.5rem;
+    }
+
+    .stat-card {
+        padding: 0.6rem;
+    }
+
+    .stat-card .stat-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+
+    .stat-content h3 {
+        font-size: 0.7rem;
+    }
+
+    .stat-number {
+        font-size: 1.2rem;
+    }
+
+    #dashboard-page h1 {
+        font-size: 1.1rem;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
+
+    .modal {
+        margin: var(--spacing-sm);
+    }
+
+    .modal-header,
+    .modal-body {
+        padding: var(--spacing-md);
+    }
+}

@@ -1,0 +1,156 @@
+/* === Diary/Log Page === */
+.log-container {
+    max-width: 800px;
+}
+
+.add-log-entry {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    margin-bottom: var(--spacing-lg);
+}
+
+.add-log-entry .form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.add-log-entry select {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    width: auto;
+    min-width: 150px;
+}
+
+.add-log-entry textarea {
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    resize: vertical;
+    min-height: 100px;
+    margin-bottom: var(--spacing-md);
+}
+
+.add-log-entry textarea:focus,
+.add-log-entry select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.log-entries {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.log-entry {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+.log-entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.log-entry-header:hover {
+    background: var(--primary-lighter);
+}
+
+.log-entry-date {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.log-entry-date i {
+    color: var(--primary-color);
+}
+
+.log-entry-toggle {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.log-entry.expanded .log-entry-toggle {
+    transform: rotate(180deg);
+}
+
+.log-entry-content {
+    display: none;
+    padding: var(--spacing-md);
+    border-top: 1px solid var(--border-light);
+}
+
+.log-entry.expanded .log-entry-content {
+    display: block;
+}
+
+.log-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.log-item-num {
+    flex-shrink: 0;
+    min-width: 1.5rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.log-item:last-child {
+    border-bottom: none;
+}
+
+.log-item-content {
+    flex: 1;
+}
+
+.log-item-category {
+    display: inline-block;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+}
+
+.log-item-category.guest { background: rgba(106, 138, 154, 0.15); color: var(--info-color); }
+.log-item-category.maintenance { background: rgba(212, 165, 116, 0.15); color: var(--warning-color); }
+.log-item-category.purchase { background: rgba(90, 154, 122, 0.15); color: var(--success-color); }
+.log-item-category.other { background: rgba(138, 122, 154, 0.15); color: #8a7a9a; }
+
+.log-item-text {
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.log-item-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
