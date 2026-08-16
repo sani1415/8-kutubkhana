@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 </head>
 <body>
     <!-- Loading: visible from first paint until auth is decided (no login blink) -->
@@ -37,8 +37,42 @@
         </div>
     </div>
 
+    <!-- Safety fallback: never leave the login form hidden behind a stuck loader. -->
+    <script>
+        (function () {
+            var hasSession = false;
+            try {
+                for (var i = 0; i < localStorage.length; i++) {
+                    var key = localStorage.key(i) || '';
+                    if (!key.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
+                    var saved = JSON.parse(localStorage.getItem(key) || '{}');
+                    if (saved.access_token || saved.currentSession && saved.currentSession.access_token) {
+                        hasSession = true;
+                        break;
+                    }
+                }
+            } catch (_) { /* localStorage may be unavailable */ }
+            window.__hasCachedAuthSession = hasSession;
+            document.documentElement.classList.toggle('auth-session-hint', hasSession);
+
+            setTimeout(function () {
+                var loading = document.getElementById('app-loading');
+                var login = document.getElementById('login-page');
+                if (loading && loading.style.display !== 'none') {
+                    loading.style.display = 'none';
+                    loading.classList.add('fade-out');
+                }
+                if (login) {
+                    document.documentElement.classList.remove('auth-session-hint');
+                    login.style.display = '';
+                    login.classList.add('active');
+                }
+            }, 4500);
+        })();
+    </script>
+
     <!-- Login Page (hidden until we know user is not logged in) -->
-    <div id="login-page" class="login-page">
+    <div id="login-page" class="login-page active">
         <div class="login-container">
             <h1><i class="fas fa-book-open"></i> مكتبة المصباح</h1>
             <p id="supabase-required-msg" class="supabase-required-msg" style="display: none; margin: 0 0 1rem; padding: 0.75rem; background: #fff3cd; color: #856404; border-radius: 8px; font-size: 0.9rem;">يرجى إعداد Supabase: انسخ <code>js/config.example.js</code> إلى <code>js/config.js</code> وأدخل مفاتيح المشروع.</p>

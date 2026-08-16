@@ -1,20 +1,50 @@
 // Classic global feature implementation.
 Object.assign(window.App, {
-    async checkAuth() {
-        this.setLoading(true, 'جاري التحميل...');
-        document.getElementById('login-page').style.display = 'none';
-        document.querySelector('.app-container').style.display = 'none';
+    async waitForDataReady(timeoutMs = 4000) {
+        let timer;
+        const timeout = new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error('ডাটা সার্ভারে সংযোগের সময় শেষ হয়েছে।')), timeoutMs);
+        });
+        try {
+            await Promise.race([Promise.resolve(DataManager.ensureReady()), timeout]);
+        } finally {
+            clearTimeout(timer);
+        }
+    },
 
-        await DataManager.ensureReady();
-        if (DataManager.isLoggedIn()) {
-            await this.showApp();
+    async checkAuth() {
+        const hasCachedSession = Boolean(window.__hasCachedAuthSession);
+        if (hasCachedSession) {
+            this.setLoading(true, 'جاري التحميل...');
+            document.getElementById('login-page').style.display = 'none';
         } else {
             this.setLoading(false);
             this.showLogin();
         }
+        document.querySelector('.app-container').style.display = 'none';
+
+        try {
+            await this.waitForDataReady();
+            if (DataManager.isLoggedIn()) {
+                await this.showApp();
+            } else {
+                this.setLoading(false);
+                this.showLogin();
+            }
+        } catch (err) {
+            console.error('Authentication initialization failed:', err);
+            this.setLoading(false);
+            this.showLogin();
+            const msgEl = document.getElementById('supabase-required-msg');
+            if (msgEl) {
+                msgEl.textContent = 'সার্ভারে সংযোগ করা যাচ্ছে না। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।';
+                msgEl.style.display = 'block';
+            }
+        }
     },
 
     showLogin() {
+        document.documentElement.classList.remove('auth-session-hint');
         document.getElementById('login-page').style.display = '';
         document.getElementById('login-page').classList.add('active');
         document.querySelector('.app-container').style.display = 'none';
@@ -27,7 +57,7 @@ Object.assign(window.App, {
         document.getElementById('login-page').classList.remove('active');
         document.querySelector('.app-container').style.display = 'flex';
         this.setLoading(true, 'جاري تحميل المكتبة...');
-        await DataManager.ensureReady();
+        await this.waitForDataReady();
         if (DataManager.refreshProfile) await DataManager.refreshProfile();
         this.state.userRole = DataManager.getCurrentUserRole ? DataManager.getCurrentUserRole() : 'viewer';
         this.updateNavForRole();
@@ -52,6 +82,7 @@ Object.assign(window.App, {
             }
         } catch (err) {
             this.setLoading(false);
+            this.showLogin();
             alert(err && err.message ? err.message : 'حدث خطأ. تأكد من إعداد Supabase في js/config.js.');
         } finally {
             this.setLoginBusy(false);

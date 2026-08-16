@@ -99,6 +99,12 @@ body {
     background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-secondary) 100%);
     transition: opacity 0.4s ease;
 }
+html:not(.auth-session-hint) .app-loading {
+    display: none;
+}
+html.auth-session-hint #login-page {
+    display: none;
+}
 .app-loading.fade-out {
     opacity: 0;
     pointer-events: none;
