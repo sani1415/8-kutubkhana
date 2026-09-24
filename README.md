@@ -37,7 +37,6 @@ kutubkhana/
 │       ├── reports.js      # Missing-data reports
 │       ├── settings.js     # Settings and backup
 │       └── scan.js         # AI book scanning
-├── plan.md                 # Project plan
 └── README.md               # This file
 ```
 
@@ -77,14 +76,7 @@ To try the app with Supabase (login, database, document archive) you need to run
 
 3. **Log in:** On the main page use a user account you created in Supabase (Authentication → Users), then set the first admin via SQL as in `supabase/FIRST_ADMIN_SETUP.md` if needed.
 
-**Note:** If you don’t set up `config.js`, the app falls back to **localStorage** only (UI may differ slightly). For full Supabase testing use `config.js` and a local server.
-
----
-
-### Simple way (no server):
-
-1. Open `index.html` in any modern browser (Chrome, Firefox, Edge).
-2. It runs with **localStorage** only (no Supabase). For Supabase login and cloud data, use a local server as above.
+`config.js` is required. Without it the login page asks you to copy `js/config.example.js`. Library data is stored only in Supabase.
 
 ### Features
 
@@ -102,7 +94,6 @@ To try the app with Supabase (login, database, document archive) you need to run
 
 #### 👥 إدارة الأعضاء (Members)
 - View member list, search, add / edit / delete.
-- **Import from Excel**, **download member template**.
 
 #### 🔄 إدارة الإعارات (Loans)
 - View active loans, add new loan, return books, track loans per member.
@@ -113,15 +104,16 @@ To try the app with Supabase (login, database, document archive) you need to run
 - Attach images, view all entries with date and time.
 
 #### ⚙️ الإعدادات (Settings)
-- Delete all data, export all data (JSON).
+- Admin only: user roles, delete all data, Excel backup (books, members, loans, diary, document archive).
 
 ## 💾 Data storage
 
-- **No setup:** data is stored in **localStorage** in the browser (no server, works offline).
-- **With Supabase:** copy `js/config.example.js` to `js/config.js` and set your project URL and anon key. Run the SQL in `supabase/schema.sql` from the Supabase SQL Editor. Books, members, loans, and diary are then stored in Supabase.
+Copy `js/config.example.js` to `js/config.js` and set your project URL and anon key. In the Supabase SQL Editor run `supabase/schema.sql`, then migrations `001` through `009` in order. See `supabase/FIRST_ADMIN_SETUP.md` and `supabase/SECURITY_AND_MIGRATIONS.md`.
+
+Book availability follows loans: a book stays available until every copy is on loan. Status is not edited by hand. Backup export includes the document archive list (file bytes stay in Storage).
 
 ### User roles (profiles)
-- Also run `supabase/migrations/001_profiles_roles.sql` in the SQL Editor to create **ktb_profiles** and roles.
+- Roles live in **ktb_profiles** after migration `001_profiles_roles.sql`.
 - Roles: **مدير (admin)**, **أمين المكتبة (librarian)**, **مشاهد (viewer)**. Only **admin** sees Settings and user management.
 - After a user’s first login, a row is created in `ktb_profiles` with role **viewer**. To set the first admin, run in SQL Editor:
   ```sql
@@ -132,10 +124,9 @@ To try the app with Supabase (login, database, document archive) you need to run
 
 ### Books template
 **Required columns:** book name, author, category, cabinet. Shelf and other columns are optional.  
-Import matches columns by name; order is flexible.
+Import matches columns by name; order is flexible. The status column is ignored: availability comes from loans, not from the spreadsheet.
 
-### Members template
-Required columns: name, phone, address, registration date.
+Members are added in the app (name, phone, address). There is no member Excel import.
 
 ## 🌐 Language support
 
@@ -147,17 +138,13 @@ Required columns: name, phone, address, registration date.
 
 - Modern layout, full RTL, responsive, easy-on-the-eyes colors.
 
-## 📋 Sample data
-
-The app ships with sample data: 3 sample books, 2 sample members. You can remove it from Settings or add your own.
-
 ## 🔧 Tech stack
 
-- **HTML5**, **CSS3**, **JavaScript (Vanilla)**, **SheetJS (XLSX)**, **localStorage**.
+- **HTML5**, **CSS3**, **JavaScript (Vanilla)**, **SheetJS (XLSX)**, **Supabase**.
 
 ## 📝 Notes
 
-- Full working prototype; supports **localStorage** and **Supabase**; all features in `plan.md` are implemented and ready to use.
+- The app needs Supabase. Run it through a local server or the deployed site, not as a data store in the browser.
 
 ## 📱 Build Android APK
 
@@ -231,7 +218,7 @@ Then try again (`npm run apk` or `npm run android`).
 4. Click **Deploy**.  
    The build creates `js/config.js` from these variables so the app works with Supabase on the deployed URL.
 
-Without these variables, the app on Vercel will use **localStorage** only (data stays in the browser).
+Without these variables the deployed app has no database connection.
 
 ## 🤖 Scan Books (Gemini AI) – server-side key
 
@@ -244,44 +231,13 @@ supabase secrets set GEMINI_API_KEY=<your-key>   # once, or when rotating the ke
 supabase functions deploy scan-books
 ```
 
-## 🎯 Next steps (future)
+## 🎯 Later ideas
 
-1. Supabase Auth
-2. Upload images to Supabase Storage
-3. More reports and stats
-4. Notifications for due dates
+1. Due-date reminders for loans
+2. Audit log of important changes
 
 ## 🗂️ App names (Arabic UI labels)
 
 - **القسم (Category)** examples: **خطابات**, **عقود**, **صور قديمة**, **مخطوطات**, **أخرى**
-- **الحالة (Status)** examples: **متاح (Available)**, **معار (Issued)**
-
-
-
-Build & run locally
-
-- Development server (simple static server):
-  ```bash
-  npm run serve
-  ```
-  Or: `npm run dev`.
-- Or Python:
-  ```bash
-  python -m http.server 8080
-  ```
-
-### Build Android APK
-
-
-- Manual steps:
-  ```bash
-  npm run build:android
-  npx cap sync android
-  
-- Using Android Studio:
-  ```bash
-  npm run android
-  ```
-  Then in Android Studio: **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
-
+- **الحالة (Status)** follows loans: **متاح** while a copy is free, **معار** when every copy is on loan.
 

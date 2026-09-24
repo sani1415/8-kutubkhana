@@ -1,6 +1,6 @@
 # UI design suggestions (مكتبة المصباح)
 
-Small, practical improvements that fit your current stack (vanilla JS + `main.css`). No full redesign—just polish and clarity.
+Small, practical improvements that fit the current stack (vanilla JS and the stylesheets linked from `index.html`). No full redesign.
 
 ---
 
@@ -57,7 +57,7 @@ You use CSS variables; add a `[data-theme="dark"]` (or `.dark`) that overrides `
 Instead of a blank area while data loads, show grey placeholder blocks (skeleton) for tables or cards. Feels faster and more polished.
 
 ### 13. **Slightly larger touch targets on mobile**
-Ensure buttons and list rows have at least ~44px height on touch devices so they’re easy to tap. You can do this with `min-height` and padding in `main.css` for `.btn` and table rows.
+Ensure buttons and list rows have at least ~44px height on touch devices so they’re easy to tap. Use `min-height` and padding on `.btn` and table rows in the stylesheets linked from `index.html`.
 
 ### 14. **Print-friendly dashboard**
 A `@media print` block that hides nav and shows only the main content (e.g. dashboard stats or a simple report) so printing looks clean.

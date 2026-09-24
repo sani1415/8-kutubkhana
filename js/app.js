@@ -34,6 +34,7 @@ const App = {
         selectedBooks: new Set(),
         selectedMembers: new Set(),
         filters: {},
+        loanFilters: { bookName: '', memberName: '', status: '', from: '', to: '' },
         expandedLogEntries: new Set(),
         reportsFilter: 'all',
         reportsPage: 1,
@@ -357,6 +358,11 @@ const App = {
         document.querySelectorAll('.filter-input, .filter-select').forEach(input => {
             input.addEventListener('input', (e) => {
                 const column = e.target.dataset.column;
+                if (e.target.closest('#loans-page')) {
+                    this.state.loanFilters[column] = e.target.value;
+                    this.renderLoans();
+                    return;
+                }
                 this.state.filters[column] = e.target.value;
                 this.state.booksPage = 1;
                 this.renderBooks();

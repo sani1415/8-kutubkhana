@@ -525,11 +525,8 @@
                                     <input type="number" id="book-copies" name="copies" min="1" value="1">
                                 </div>
                                 <div class="form-group">
-                                    <label for="book-status">الحالة</label>
-                                    <select id="book-status" name="status">
-                                        <option value="متاح">متاح</option>
-                                        <option value="معار">معار</option>
-                                    </select>
+                                    <label>الحالة</label>
+                                    <p class="field-hint">تُحدَّد تلقائياً من الإعارات. الكتاب «معار» عندما تُعار كل النسخ.</p>
                                 </div>
                             </div>
                             <div class="form-group">
@@ -575,7 +572,11 @@
                                     <span>العضو</span>
                                     <input type="text" class="filter-input" data-column="memberName" placeholder="بحث...">
                                 </th>
-                                <th>تاريخ الإعارة</th>
+                                <th>
+                                    <span>تاريخ الإعارة</span>
+                                    <input type="date" class="filter-input" data-column="from" title="من تاريخ" aria-label="من تاريخ الإعارة">
+                                    <input type="date" class="filter-input" data-column="to" title="إلى تاريخ" aria-label="إلى تاريخ الإعارة">
+                                </th>
                                 <th>تاريخ الإرجاع</th>
                                 <th>
                                     <span>الحالة</span>
@@ -927,6 +928,7 @@
                             <label class="backup-option"><input type="checkbox" id="backup-members" checked> الأعضاء</label>
                             <label class="backup-option"><input type="checkbox" id="backup-loans" checked> الإعارات</label>
                             <label class="backup-option"><input type="checkbox" id="backup-diary" checked> اليوميات</label>
+                            <label class="backup-option"><input type="checkbox" id="backup-documents" checked> أرشيف الوثائق</label>
                         </div>
                         <button type="button" class="btn btn-primary" id="export-backup-btn">
                             <i class="fas fa-download"></i> تصدير Excel
@@ -1032,8 +1034,8 @@
         <i class="fas fa-arrow-up"></i>
     </button>
 
-    <!-- Optional: Supabase config (copy config.example.js to config.js with your keys; if missing, app uses localStorage) -->
-    <script src="js/config.js" onerror="console.info('No config.js — using localStorage')"></script>
+    <!-- Copy js/config.example.js to js/config.js. Without it the app cannot load library data. -->
+    <script src="js/config.js" onerror="console.info('No config.js — Supabase is required')"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js"></script>
     <script src="js/supabase-data.js"></script>

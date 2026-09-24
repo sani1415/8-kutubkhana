@@ -79,7 +79,8 @@ Object.assign(window.App, {
         const members = document.getElementById('backup-members').checked;
         const loans = document.getElementById('backup-loans').checked;
         const diary = document.getElementById('backup-diary').checked;
-        if (!books && !members && !loans && !diary) {
+        const documents = document.getElementById('backup-documents')?.checked;
+        if (!books && !members && !loans && !diary && !documents) {
             alert('اختر عنصراً واحداً على الأقل للتصدير.');
             return;
         }
@@ -118,6 +119,15 @@ Object.assign(window.App, {
                 ['التاريخ', 'النوع', 'المحتوى'],
                 ...diaryList.map(d => [d.date || '', d.category || '', d.content || d.details || ''])
             ]), 'اليوميات');
+        }
+        if (documents && DataManager.getDocuments) {
+            const docs = DataManager.getDocuments();
+            const bookList = DataManager.getBooks();
+            const bookName = id => (bookList.find(b => b.id === id) || {}).name || '';
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+                ['العنوان', 'الوصف', 'القسم', 'التاريخ', 'الكتاب المرتبط', 'مسارات الملفات'],
+                ...docs.map(d => [d.title || '', d.description || '', d.category || '', d.documentDate || '', bookName(d.bookId), (d.filePaths || []).join(' | ')])
+            ]), 'الوثائق');
         }
         XLSX.writeFile(wb, `backup_${new Date().toISOString().split('T')[0]}.xlsx`);
         alert('تم تصدير النسخة الاحتياطية بنجاح.');

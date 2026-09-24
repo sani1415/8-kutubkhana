@@ -3,7 +3,7 @@ Object.assign(window.App, {
     async waitForDataReady(timeoutMs = 4000) {
         let timer;
         const timeout = new Promise((_, reject) => {
-            timer = setTimeout(() => reject(new Error('ডাটা সার্ভারে সংযোগের সময় শেষ হয়েছে।')), timeoutMs);
+            timer = setTimeout(() => reject(new Error('انتهت مهلة الاتصال بالخادم.')), timeoutMs);
         });
         try {
             await Promise.race([Promise.resolve(DataManager.ensureReady()), timeout]);
@@ -37,7 +37,7 @@ Object.assign(window.App, {
             this.showLogin();
             const msgEl = document.getElementById('supabase-required-msg');
             if (msgEl) {
-                msgEl.textContent = 'সার্ভারে সংযোগ করা যাচ্ছে না। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।';
+                msgEl.textContent = 'تعذر تحميل البيانات من الخادم. تحقق من الاتصال ثم أعد المحاولة.';
                 msgEl.style.display = 'block';
             }
         }

@@ -4,11 +4,10 @@ After you run the schema and migrations, **the first user who signs up gets a pr
 
 ## Steps
 
-1. **Run migrations in order** (in Supabase Dashboard → SQL Editor):
+1. **Run SQL in order** (in Supabase Dashboard → SQL Editor):
    - `schema.sql`
-   - `migrations/001_profiles_roles.sql`
-   - `migrations/002_profiles_rls_fix.sql` (if you had 500 errors on profiles)
-   - `migrations/003_rls_role_based.sql`
+   - `migrations/001_profiles_roles.sql` through `migrations/009_loan_copies_and_safe_delete.sql`
+   - `002` matters if profiles requests return HTTP 500
 
 2. **Let the first user sign up** through the app (or create them in Authentication → Users).
 

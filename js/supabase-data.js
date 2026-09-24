@@ -109,6 +109,15 @@
         if (!Number.isInteger(copies) || copies < 1) throw new Error('عدد النسخ يجب أن يكون 1 أو أكثر');
     }
 
+    function activeLoanCount(bookId) {
+        return cache.loans.filter(l => l.bookId === bookId && l.status === 'معار').length;
+    }
+
+    function statusForCopies(bookId, copies) {
+        const n = Math.max(1, parseInt(copies, 10) || 1);
+        return activeLoanCount(bookId) >= n ? 'معار' : 'متاح';
+    }
+
     async function ensureProfile() {
         if (!authUser) return;
         const uid = authUser.id;
@@ -169,17 +178,17 @@
             fetchAllFromTable(T.diary, 'created_at', false),
             sb.from(T.categories).select('name').order('name'),
             sb.from(T.publishers).select('name').order('name'),
-            sb.from(T.documents).select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
-                if (error) return []; return data || [];
-            })
+            fetchAllFromTable(T.documents, 'created_at', false)
         ]);
+        if (catRes.error) throw catRes.error;
+        if (pubRes.error) throw pubRes.error;
         cache.books = booksRows.map(mapBook);
         cache.members = membersRows.map(mapMember);
         cache.loans = loansRows.map(mapLoan);
         cache.diary = diaryRows.map(mapDiary);
         cache.documents = (docsRes || []).map(mapDocument);
-        if (catRes.data) cache.categories = (catRes.data || []).map(r => r.name);
-        if (pubRes.data) cache.publishers = (pubRes.data || []).map(r => r.name);
+        cache.categories = (catRes.data || []).map(r => r.name);
+        cache.publishers = (pubRes.data || []).map(r => r.name);
     }
 
     function dispatchDataReady() {
@@ -194,7 +203,10 @@
             await ensureProfile();
             await fetchAll();
             dispatchDataReady();
-        } catch (_e) { /* don't block UI */ }
+        } catch (err) {
+            dispatchDataReady();
+            throw err;
+        }
     }
 
     window.SupabaseDataManager = {
@@ -273,7 +285,7 @@
                 publisher: book.publisher || '',
                 year: book.year || '',
                 copies: book.copies != null ? Math.max(1, parseInt(book.copies, 10) || 1) : 1,
-                status: book.status || 'متاح',
+                status: 'متاح',
                 cabinet: (book.cabinet || '').trim(),
                 shelf: book.shelf || '',
                 notes: book.notes || ''
@@ -291,10 +303,13 @@
             const current = cache.books.find(b => b.id === id);
             const merged = current ? { ...current, ...updatedData } : { ...updatedData };
             validateBook(merged);
+            if (updatedData.copies !== undefined && activeLoanCount(id) > Math.max(1, parseInt(updatedData.copies, 10) || 1)) {
+                return Promise.reject(new Error('عدد النسخ أقل من الإعارات النشطة. أرجع بعض النسخ أولاً.'));
+            }
             const map = {
                 name: 'name', author: 'author', category: 'category', editor: 'editor',
                 parts: 'parts', publisher: 'publisher', year: 'year', copies: 'copies',
-                status: 'status', cabinet: 'cabinet', shelf: 'shelf', notes: 'notes'
+                cabinet: 'cabinet', shelf: 'shelf', notes: 'notes'
             };
             const obj = { updated_at: new Date().toISOString() };
             Object.keys(map).forEach(k => { if (updatedData[k] !== undefined) obj[map[k]] = updatedData[k]; });
@@ -305,9 +320,25 @@
                     if (error) return Promise.reject(error);
                     const idx = cache.books.findIndex(b => b.id === id);
                     if (idx !== -1) cache.books[idx] = mapBook(data);
+                    return this.syncBookStatus(id);
+                });
+        },
+
+        syncBookStatus(bookId) {
+            const book = cache.books.find(b => b.id === bookId);
+            if (!book) return Promise.resolve(null);
+            const status = statusForCopies(bookId, book.copies);
+            if (book.status === status) return Promise.resolve(book);
+            return sb.from(T.books).update({ status, updated_at: new Date().toISOString() }).eq('id', bookId).select().single()
+                .then(({ data, error }) => {
+                    if (error) return Promise.reject(error);
+                    const idx = cache.books.findIndex(b => b.id === bookId);
+                    if (idx !== -1) cache.books[idx] = mapBook(data);
                     return mapBook(data);
                 });
         },
+
+        getActiveLoanCount(bookId) { return activeLoanCount(bookId); },
 
         deleteBook(id) {
             const activeLoan = cache.loans.some(l => l.bookId === id && l.status === 'معار');
@@ -389,8 +420,11 @@
         setLoans(loans) { cache.loans = loans.slice(); },
 
         addLoan(loan) {
-            const activeForBook = cache.loans.some(l => l.bookId === loan.bookId && l.status === 'معار');
-            if (activeForBook) return Promise.reject(new Error('الكتاب معار حالياً. لا يمكن إعارته مرتين في نفس الوقت.'));
+            const book = cache.books.find(b => b.id === loan.bookId);
+            const copies = Math.max(1, parseInt(book && book.copies, 10) || 1);
+            if (activeLoanCount(loan.bookId) >= copies) {
+                return Promise.reject(new Error('كل النسخ معارة. لا يمكن إعارة نسخة أخرى.'));
+            }
             const row = {
                 book_id: loan.bookId,
                 member_id: loan.memberId,
@@ -403,7 +437,7 @@
                     if (error) return Promise.reject(error);
                     const out = mapLoan({ ...row, id: data.id, created_at: data.created_at });
                     cache.loans.unshift(out);
-                    return this.updateBook(loan.bookId, { status: 'معار' }).then(() => out);
+                    return this.syncBookStatus(loan.bookId).then(() => out);
                 });
         },
 
@@ -416,7 +450,7 @@
                     if (error) return Promise.reject(error);
                     const idx = cache.loans.findIndex(l => l.id === id);
                     if (idx !== -1) cache.loans[idx] = mapLoan(data);
-                    return this.updateBook(loan.bookId, { status: 'متاح' }).then(() => mapLoan(data));
+                    return this.syncBookStatus(loan.bookId).then(() => mapLoan(data));
                 });
         },
 
@@ -426,7 +460,7 @@
                 if (error) return Promise.reject(error);
                 cache.loans = cache.loans.filter(l => l.id !== id);
                 if (loan && loan.status === 'معار') {
-                    return this.updateBook(loan.bookId, { status: 'متاح' }).then(() => true);
+                    return this.syncBookStatus(loan.bookId).then(() => true);
                 }
                 return true;
             });
@@ -590,12 +624,19 @@
         },
 
         updateCategory(oldName, newName) {
-            return sb.from(T.categories).update({ name: newName }).eq('name', oldName).then(({ error }) => {
-                if (!error) {
+            const next = (newName || '').trim();
+            if (!next || next === oldName) return Promise.resolve(false);
+            return sb.from(T.categories).update({ name: next }).eq('name', oldName).then(({ error }) => {
+                if (error) return false;
+                return sb.from(T.books).update({ category: next }).eq('category', oldName).then(({ error: bookErr }) => {
+                    if (bookErr) {
+                        return sb.from(T.categories).update({ name: oldName }).eq('name', next).then(() => false);
+                    }
                     const i = cache.categories.indexOf(oldName);
-                    if (i !== -1) cache.categories[i] = newName;
-                }
-                return !error;
+                    if (i !== -1) cache.categories[i] = next;
+                    cache.books.forEach(b => { if (b.category === oldName) b.category = next; });
+                    return true;
+                });
             });
         },
 
@@ -635,12 +676,19 @@
         },
 
         updatePublisher(oldName, newName) {
-            return sb.from(T.publishers).update({ name: newName }).eq('name', oldName).then(({ error }) => {
-                if (!error) {
+            const next = (newName || '').trim();
+            if (!next || next === oldName) return Promise.resolve(false);
+            return sb.from(T.publishers).update({ name: next }).eq('name', oldName).then(({ error }) => {
+                if (error) return false;
+                return sb.from(T.books).update({ publisher: next }).eq('publisher', oldName).then(({ error: bookErr }) => {
+                    if (bookErr) {
+                        return sb.from(T.publishers).update({ name: oldName }).eq('name', next).then(() => false);
+                    }
                     const i = cache.publishers.indexOf(oldName);
-                    if (i !== -1) cache.publishers[i] = newName;
-                }
-                return !error;
+                    if (i !== -1) cache.publishers[i] = next;
+                    cache.books.forEach(b => { if (b.publisher === oldName) b.publisher = next; });
+                    return true;
+                });
             });
         },
 
@@ -764,12 +812,20 @@
                 if (cell !== '' || row.length > 0) { row.push(cell.trim()); rows.push(row); }
                 return rows;
             };
-            const yearLooksValid = (v) => {
-                const s = (v || '').trim();
-                if (!s) return true;
-                const digits = s.replace(/[\s\u0660-\u0669\u06F0-\u06F9]/g, '').replace(/\d/g, '');
-                const onlyDigitsOrEmpty = (s.replace(/\s/g, '').replace(/[\u0660-\u0669\u06F0-\u06F9\d]/g, '').length === 0);
-                return onlyDigitsOrEmpty && s.length <= 8;
+            const toWesternDigits = (value) => String(value || '').replace(/[٠-٩۰-۹০-৯]/g, (ch) => {
+                const code = ch.charCodeAt(0);
+                if (code >= 0x0660 && code <= 0x0669) return String(code - 0x0660);
+                if (code >= 0x06F0 && code <= 0x06F9) return String(code - 0x06F0);
+                if (code >= 0x09E6 && code <= 0x09EF) return String(code - 0x09E6);
+                return ch;
+            });
+            const parseCount = (value) => {
+                const n = parseInt(toWesternDigits(value), 10);
+                return Number.isInteger(n) && n >= 1 ? n : 1;
+            };
+            const parseYear = (value) => {
+                const s = toWesternDigits(value).replace(/\s/g, '');
+                return /^\d{1,8}$/.test(s) ? s : '';
             };
             const rows = parseCSVToRows(csvData);
             if (rows.length < 2) return Promise.resolve({ success: false, message: 'الملف فارغ أو غير صالح' });
@@ -798,8 +854,6 @@
                 uniqueCategories.add(category);
                 const publisherVal = (col(cleanValues, 'دار النشر') || '').trim();
                 if (publisherVal) uniquePublishers.add(publisherVal);
-                const yearRaw = (col(cleanValues, 'السنة') || '').trim();
-                const year = yearLooksValid(yearRaw) ? yearRaw : '';
                 const book = {
                     name,
                     author,
@@ -807,11 +861,10 @@
                     category: category || 'عام',
                     cabinet,
                     shelf: col(cleanValues, 'الطاق') || '',
-                    parts: parseInt(col(cleanValues, 'الأجزاء')) || 1,
+                    parts: parseCount(col(cleanValues, 'الأجزاء')),
                     publisher: publisherVal,
-                    year,
-                    copies: parseInt(col(cleanValues, 'النسخ')) || 1,
-                    status: col(cleanValues, 'الحالة') || 'متاح',
+                    year: parseYear(col(cleanValues, 'السنة')),
+                    copies: parseCount(col(cleanValues, 'النسخ')),
                     notes: col(cleanValues, 'ملاحظات') || ''
                 };
                 const existingBook = existing.find(b =>
@@ -831,7 +884,6 @@
                     if (normalizeNum(existingBook.parts) !== normalizeNum(book.parts)) changes.push({ field: 'الأجزاء', old: existingBook.parts, new: book.parts });
                     if (normalize(existingBook.year) !== normalize(book.year)) changes.push({ field: 'السنة', old: existingBook.year, new: book.year });
                     if (normalizeNum(existingBook.copies) !== normalizeNum(book.copies)) changes.push({ field: 'النسخ', old: existingBook.copies, new: book.copies });
-                    if (normalize(existingBook.status) !== normalize(book.status)) changes.push({ field: 'الحالة', old: existingBook.status, new: book.status });
                     if (normalize(existingBook.cabinet) !== normalize(book.cabinet)) changes.push({ field: 'الصندوق', old: existingBook.cabinet, new: book.cabinet });
                     if (normalize(existingBook.shelf) !== normalize(book.shelf)) changes.push({ field: 'الطاق', old: existingBook.shelf, new: book.shelf });
                     if (normalize(existingBook.notes) !== normalize(book.notes)) changes.push({ field: 'ملاحظات', old: existingBook.notes, new: book.notes });
@@ -867,7 +919,7 @@
                 publisher: book.publisher || '',
                 year: book.year || '',
                 copies: book.copies != null ? book.copies : 1,
-                status: book.status || 'متاح',
+                status: 'متاح',
                 cabinet: book.cabinet || '',
                 shelf: book.shelf || '',
                 notes: book.notes || ''

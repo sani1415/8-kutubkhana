@@ -1,1 +1,2 @@
-salaam 
+-- Example categories and publishers are inserted by supabase/schema.sql.
+-- This file does not add sample books or members.

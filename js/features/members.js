@@ -16,7 +16,15 @@ Object.assign(window.App, {
             const bulkEl = document.getElementById('members-bulk-actions');
             if (bulkEl) bulkEl.style.display = this.canEdit() ? 'flex' : 'none';
             const showEdit = this.canEdit();
-            container.innerHTML = members.map((member, index) => `
+            container.innerHTML = members.map((member, index) => {
+                const active = DataManager.getLoans().filter(l => l.memberId === member.id && l.status === 'معار');
+                const titles = active.map(l => DataManager.getBookById(l.bookId)?.name || 'كتاب محذوف');
+                const shown = titles.slice(0, 3).join('، ');
+                const more = titles.length > 3 ? ` +${titles.length - 3}` : '';
+                const loanLine = active.length
+                    ? `إعارات نشطة: ${active.length} — ${shown}${more}`
+                    : 'لا إعارات نشطة';
+                return `
                 <div class="item-card" data-id="${escapeHtml(member.id)}">
                     <div class="item-info">
                         <span class="item-number">${index + 1}</span>
@@ -24,11 +32,13 @@ Object.assign(window.App, {
                         <div class="item-details">
                             <h4>${escapeHtml(member.name)}</h4>
                             <p>${escapeHtml(member.phone || '')} ${member.address ? '• ' + escapeHtml(member.address) : ''}</p>
+                            <p>${escapeHtml(loanLine)}</p>
                         </div>
                     </div>
                     ${showEdit ? `<div class="item-actions"><button class="btn btn-sm btn-edit" onclick="App.editMember('${member.id}')" title="تعديل"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-delete" onclick="App.confirmDeleteMember('${member.id}')" title="حذف"><i class="fas fa-trash"></i></button></div>` : ''}
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         this.updateMembersBulkDelete();

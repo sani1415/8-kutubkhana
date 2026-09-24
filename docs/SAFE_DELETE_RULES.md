@@ -31,9 +31,10 @@ Phase 4: how destructive operations are restricted and when deletion is blocked.
 
 ## Backend details
 
-- **RLS (003):** Librarian and admin have DELETE on books, members, loans, diary_entries, categories, publishers. Viewer has no DELETE.
-- **RPC `clear_all_data()` (005):** Runs as SECURITY DEFINER; checks `is_profiles_admin()`. If not admin, raises exception. Deletes in order: loans → books → members → diary_entries → categories → publishers.
-- **Data layer:** Before delete book(s) or member(s), checks for active loans and rejects with an Arabic error message if found.
+- **RLS (003):** Librarian and admin have DELETE on books, members, loans, diary, categories, publishers, and documents. Viewer has no DELETE.
+- **Triggers (009):** Deleting a book or member that still has an active loan (`معار`) fails in the database, including direct API calls. Returned loans can still be removed with the book or member.
+- **RPC `clear_all_data()` (005, refreshed in 007):** Admin only. Deletes in order: loans → documents → books → members → diary → categories → publishers.
+- **App:** The same active-loan check runs before delete and shows an Arabic message.
 
 ## Related records
 

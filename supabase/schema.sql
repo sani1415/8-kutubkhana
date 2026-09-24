@@ -62,21 +62,15 @@ CREATE TABLE IF NOT EXISTS ktb_publishers (
   name TEXT UNIQUE NOT NULL
 );
 
--- Enable Row Level Security (optional; allow anon read/write for now)
+-- Row Level Security is on. This file does not grant access.
+-- Run migrations 001 through 009 after this file. Re-running schema.sql
+-- does not add anonymous write policies.
 ALTER TABLE ktb_books ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ktb_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ktb_loans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ktb_diary_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ktb_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ktb_publishers ENABLE ROW LEVEL SECURITY;
-
--- Policies: allow anon to do everything (for app using anon key)
-CREATE POLICY "Allow anon all on ktb_books" ON ktb_books FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow anon all on ktb_members" ON ktb_members FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow anon all on ktb_loans" ON ktb_loans FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow anon all on ktb_diary_entries" ON ktb_diary_entries FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow anon all on ktb_categories" ON ktb_categories FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow anon all on ktb_publishers" ON ktb_publishers FOR ALL USING (true) WITH CHECK (true);
 
 -- Seed default categories
 INSERT INTO ktb_categories (name) VALUES

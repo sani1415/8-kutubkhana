@@ -1,3 +1,10 @@
+.field-hint {
+    margin: 0;
+    color: var(--text-secondary, #5c6b66);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
 /* === Stats Grid === */
 .stats-grid {
     display: grid;

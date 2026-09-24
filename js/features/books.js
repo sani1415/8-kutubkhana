@@ -1,5 +1,12 @@
 // Classic global feature implementation.
 Object.assign(window.App, {
+    bookAvailabilityLabel(book) {
+        const copies = Math.max(1, parseInt(book.copies, 10) || 1);
+        const active = DataManager.getActiveLoanCount ? DataManager.getActiveLoanCount(book.id) : 0;
+        const left = Math.max(0, copies - active);
+        return `${book.status || 'متاح'} (${left}/${copies})`;
+    },
+
     renderBooks() {
         const books = this.getFilteredBooks();
         const totalPages = Math.ceil(books.length / this.state.booksPerPage) || 1;
@@ -44,7 +51,7 @@ Object.assign(window.App, {
                     <td>${escapeHtml(book.copies || 1)}</td>
                     <td>
                         <span class="status-badge ${book.status === 'معار' ? 'issued' : 'available'}">
-                            ${escapeHtml(book.status || 'متاح')}
+                            ${escapeHtml(this.bookAvailabilityLabel(book))}
                         </span>
                     </td>
                     <td>${escapeHtml(book.cabinet || '-')}</td>
@@ -92,7 +99,7 @@ Object.assign(window.App, {
             mobileList.innerHTML = pageBooks.map((book, index) => {
                 const rowNum = startIndex + index + 1;
                 const statusClass = book.status === 'معار' ? 'issued' : 'available';
-                const statusText = book.status || 'متاح';
+                const statusText = this.bookAvailabilityLabel(book);
                 const actionsHtml = showEdit ? `
                     <div class="mobile-compact-actions">
                         <button class="act-edit" onclick="event.stopPropagation(); App.editBook('${book.id}')"><i class="fas fa-pen"></i> تعديل</button>
@@ -325,10 +332,7 @@ Object.assign(window.App, {
                 </div>
                 <div class="form-group">
                     <label>الحالة</label>
-                    <select name="status">
-                        <option value="متاح" ${book.status === 'متاح' ? 'selected' : ''}>متاح</option>
-                        <option value="معار" ${book.status === 'معار' ? 'selected' : ''}>معار</option>
-                    </select>
+                    <p class="field-hint">${escapeHtml(this.bookAvailabilityLabel(book))} — تُحدَّد من الإعارات، ولا تُعدَّل يدوياً.</p>
                 </div>
                 <div class="form-group">
                     <label>ملاحظات</label>
@@ -393,7 +397,6 @@ Object.assign(window.App, {
             publisher: formData.get('publisher') || '',
             year: formData.get('year') || '',
             copies: parseInt(formData.get('copies')) || 1,
-            status: formData.get('status') || 'متاح',
             cabinet: formData.get('cabinet') || '',
             shelf: formData.get('shelf') || '',
             notes: formData.get('notes') || ''

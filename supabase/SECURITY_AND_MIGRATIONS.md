@@ -1,37 +1,26 @@
 # Backend security: where it lives and what to do
 
-This file clarifies how security is implemented so that reviewers (and tools like ChatGPT) don’t conclude “schema.sql is still open.”
-
 ## Where the real security is
 
-- **`schema.sql`** is the **initial** schema: tables + RLS enabled + **temporary** “allow anon all” policies so the app can work before hardening.
-- **Security is in the migrations**, not in changing `schema.sql`:
-  - **`001_profiles_roles.sql`** – `profiles` table and profile RLS.
-  - **`002_profiles_rls_fix.sql`** – Fixes profile RLS recursion (if needed).
-  - **`003_rls_role_based.sql`** – **Removes** the anon-all policies and **adds** role-based RLS (authenticated only; viewer/librarian/admin).
-  - **`004_data_integrity.sql`** – Constraints (required fields, parts/copies ≥ 1, one active loan per book, return_date ≥ loan_date).
-  - **`005_dangerous_actions.sql`** – Admin-only `clear_all_data()` RPC.
+- **`schema.sql`** creates the `ktb_*` tables and turns on row level security. It does **not** grant anonymous access. Re-running it does not reopen the database.
+- Access rules are in the migrations:
+  - **`001_profiles_roles.sql`** – `ktb_profiles` and profile policies.
+  - **`002_profiles_rls_fix.sql`** – profile policy fix if you saw HTTP 500 on profiles.
+  - **`003_rls_role_based.sql`** – authenticated role rules (viewer / librarian / admin). Also drops old “allow anon all” policies if they still exist.
+  - **`004_data_integrity.sql`** – required book fields, parts/copies ≥ 1, return date not before loan date.
+  - **`005_dangerous_actions.sql`** – admin-only `clear_all_data()`.
+  - **`006_document_archive.sql`** – `ktb_documents` and the document storage bucket.
+  - **`007_ktb_table_prefix.sql`** – renames old unprefixed tables if a previous database still has them.
+  - **`008_ktb_storage_bucket.sql`** – storage policies for `ktb-document-archive`.
+  - **`009_loan_copies_and_safe_delete.sql`** – drops leftover anon policies, allows one loan per copy, keeps book status in step with loans, and blocks deleting a book or member that still has an active loan.
 
-So: **the backend is secured only after these migrations are applied.** The repo is “secure” in the sense that the SQL is written; it is **not** secure until you run it in your Supabase project.
+The database is secure only after these migrations have been applied in your Supabase project.
 
 ## What you must do
 
 1. In **Supabase Dashboard → SQL Editor**, run in order:
-   - `schema.sql` (if the project is new),
-   - then `001_profiles_roles.sql`,
-   - then `002_profiles_rls_fix.sql` (if you had 500s on profiles),
-   - then **`003_rls_role_based.sql`** (this is the one that removes anon-all and enforces roles),
-   - then `004_data_integrity.sql`,
-   - then `005_dangerous_actions.sql`.
-2. Set your first admin (see `FIRST_ADMIN_SETUP.md`).
+   - `schema.sql` (new project, or if the tables are missing)
+   - `001` through `009`
+2. Set the first admin (`FIRST_ADMIN_SETUP.md`).
 
-Until **003** (and the rest) are applied, the database still has the open policies from `schema.sql`. So ChatGPT’s concern (“backend security still not finished”) is correct **if migrations have not been run**. The correction: the secure SQL **does exist** in the repo, in the migration files; it is not in `schema.sql` by design.
-
-## Summary for reviewers
-
-| Question | Answer |
-|----------|--------|
-| Is `schema.sql` still “anon all”? | Yes, on purpose. It’s the baseline. |
-| Where is the secure RLS? | In **`migrations/003_rls_role_based.sql`** (drops anon policies, adds role-based policies). |
-| Where is `clear_all_data`? | In **`migrations/005_dangerous_actions.sql`**. |
-| Is the backend secure now? | Only after you run 001 → 002 → 003 → 004 → 005 in your Supabase project. |
+If an older database still has “Allow anon all” policies, migration **009** removes them.

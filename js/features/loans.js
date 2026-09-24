@@ -1,7 +1,19 @@
 // Classic global feature implementation.
 Object.assign(window.App, {
     renderLoans() {
-        const loans = DataManager.getLoans();
+        const filters = this.state.loanFilters || {};
+        let loans = DataManager.getLoans();
+        const bookQuery = (filters.bookName || '').trim().toLowerCase();
+        const memberQuery = (filters.memberName || '').trim().toLowerCase();
+        if (filters.status) loans = loans.filter(l => l.status === filters.status);
+        if (bookQuery) {
+            loans = loans.filter(l => (DataManager.getBookById(l.bookId)?.name || '').toLowerCase().includes(bookQuery));
+        }
+        if (memberQuery) {
+            loans = loans.filter(l => (DataManager.getMemberById(l.memberId)?.name || '').toLowerCase().includes(memberQuery));
+        }
+        if (filters.from) loans = loans.filter(l => (l.loanDate || '') >= filters.from);
+        if (filters.to) loans = loans.filter(l => (l.loanDate || '') && (l.loanDate || '') <= filters.to);
         const tbody = document.getElementById('loans-tbody');
 
         if (loans.length === 0) {
@@ -9,7 +21,7 @@ Object.assign(window.App, {
                 <tr>
                     <td colspan="7" class="empty-state">
                         <i class="fas fa-history"></i>
-                        <p>لا توجد إعارات مسجلة</p>
+                        <p>${DataManager.getLoans().length ? 'لا توجد إعارات مطابقة للتصفية' : 'لا توجد إعارات مسجلة'}</p>
                     </td>
                 </tr>
             `;
@@ -40,7 +52,11 @@ Object.assign(window.App, {
     },
 
     openLoanModal() {
-        const books = DataManager.getBooks().filter(b => b.status !== 'معار');
+        const books = DataManager.getBooks().filter(b => {
+            const copies = Math.max(1, parseInt(b.copies, 10) || 1);
+            const active = DataManager.getActiveLoanCount ? DataManager.getActiveLoanCount(b.id) : 0;
+            return active < copies;
+        });
         const members = DataManager.getMembers();
 
         if (books.length === 0) {
@@ -54,7 +70,12 @@ Object.assign(window.App, {
 
         const bookSelect = document.getElementById('loan-book');
         bookSelect.innerHTML = '<option value="">اختر الكتاب</option>' +
-            books.map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)} - ${escapeHtml(b.author)}</option>`).join('');
+            books.map(b => {
+                const copies = Math.max(1, parseInt(b.copies, 10) || 1);
+                const active = DataManager.getActiveLoanCount ? DataManager.getActiveLoanCount(b.id) : 0;
+                const left = copies - active;
+                return `<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)} - ${escapeHtml(b.author)} (${left}/${copies})</option>`;
+            }).join('');
 
         const memberSelect = document.getElementById('loan-member');
         memberSelect.innerHTML = '<option value="">اختر العضو</option>' +
