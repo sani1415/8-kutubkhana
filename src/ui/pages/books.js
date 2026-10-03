@@ -383,11 +383,11 @@ function drawerContent(app, b) {
         ['القسم', b.category], ['المحقق', b.editor], ['دار النشر', b.publisher], ['السنة', b.year],
         ['الأجزاء', b.parts > 1 ? fmtNumber(b.parts) : ''], ['النسخ', copies > 1 || left < copies ? `${fmtNumber(left)} متاح من ${fmtNumber(copies)}` : ''],
         ['الموقع', [isBlank(b.cabinet) ? '' : `الصندوق ${b.cabinet}`, isBlank(b.shelf) ? '' : `الطاق ${b.shelf}`].filter(Boolean).join(' · ')],
-    ].filter(([, v]) => v);
+    ].filter(([, v]) => !isBlank(v));
     return html`
         <div class="book-drawer__inner">
             <dl class="mini-facts">${facts.map(([k, v]) => html`<div><dt>${k}</dt><dd>${v}</dd></div>`)}</dl>
-            ${b.notes ? html`<p class="book-drawer__note">${b.notes}</p>` : ''}
+            ${!isBlank(b.notes) ? html`<p class="book-drawer__note">${b.notes}</p>` : ''}
             <div class="book-drawer__actions">
                 ${app.canEdit ? html`<button type="button" class="btn btn--soft btn--sm" data-action="drawer:edit" data-id="${b.id}">${icon('pencil-simple')} تعديل</button>` : ''}
                 ${app.canEdit && left > 0 ? html`<a class="btn btn--ghost btn--sm" href="#/loans?new=1&book=${b.id}">${icon('hand-arrow-up')} إعارة</a>` : ''}
