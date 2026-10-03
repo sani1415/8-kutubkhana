@@ -803,3 +803,14 @@ body[data-page='dashboard'] { overflow: hidden; }
 }
 .choice-list button small { color: var(--ink-3); }
 .choice-list button.is-on { background: var(--accent-tint); color: var(--accent-ink); font-weight: 700; }
+
+/* drawer: reopen after save without animating; compact edit form */
+.book-drawer.no-anim, .book-drawer.no-anim .book-drawer__inner { transition: none; }
+.drawer-form { display: grid; gap: 8px; animation: fade 200ms var(--ease-out); }
+.drawer-form__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.dfield { display: grid; gap: 2px; min-width: 0; }
+.dfield > span { font-size: 11px; color: var(--ink-3); }
+.dfield--full { grid-column: 1 / -1; }
+.dfield .input--sm { min-height: 36px; padding: 5px 9px; font-size: 15px; background: var(--surface); }
+.dfield textarea.input--sm { min-height: 54px; }
+.drawer-form .book-drawer__actions { margin-top: 2px; }

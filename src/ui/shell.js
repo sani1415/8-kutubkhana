@@ -226,12 +226,29 @@ export function startShell(root, repo) {
         return { path, params: new URLSearchParams(query) };
     }
 
+    const PAGE_ORDER = Object.keys(PAGES);
+
     function route() {
         if (!repo.user || !repo.hasAccess) return;
         const { path, params } = parseHash();
         const page = Object.values(PAGES).find((p) => p.path === path) || PAGES.dashboard;
         if (!visible(page)) return app.go('/');
         closeAllSheets();
+
+        const swap = () => showPage(page, params);
+        const from = current?.id;
+        // Phones: cross-fade/slide between pages with the View Transitions API;
+        // the app bar and tab bar stay put. Desktop and reduced-motion: instant.
+        const animate = from && from !== page.id && document.startViewTransition && document.visibilityState === 'visible'
+            && matchMedia('(max-width: 759px)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!animate) return swap();
+        const forward = PAGE_ORDER.indexOf(page.id) >= PAGE_ORDER.indexOf(from);
+        document.documentElement.dataset.nav = forward ? 'forward' : 'back';
+        const t = document.startViewTransition(swap);
+        t.finished.finally(() => { delete document.documentElement.dataset.nav; });
+    }
+
+    function showPage(page, params) {
         current?.instance?.destroy?.();
 
         $$('[data-page]', root).forEach((a) => {
@@ -254,9 +271,11 @@ export function startShell(root, repo) {
         $('.topbar', root).classList.toggle('topbar--page', !isHome);
         const instance = page.mount(host, app, params);
         current = { id: page.id, instance };
-        host.classList.remove('page--enter');
-        void host.offsetWidth;
-        host.classList.add('page--enter');
+        if (!document.documentElement.dataset.nav) {
+            host.classList.remove('page--enter');
+            void host.offsetWidth;
+            host.classList.add('page--enter');
+        }
         window.scrollTo({ top: 0 });
     }
 

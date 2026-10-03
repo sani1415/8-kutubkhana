@@ -113,6 +113,16 @@ export function mountDashboard(host, app) {
         'cat:open': (el) => app.go(`/books?category=${encodeURIComponent(el.dataset.cat)}`),
     });
 
+    // Mouse wheel scrolls whichever panel the pointer is over, header included,
+    // without clicking into it first (the page itself never scrolls).
+    host.addEventListener('wheel', (e) => {
+        const list = e.target.closest('.panel')?.querySelector('.panel__scroll');
+        if (!list || e.ctrlKey || Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+        e.preventDefault();
+        const unit = e.deltaMode === 1 ? 18 : e.deltaMode === 2 ? list.clientHeight : 1;
+        list.scrollTop += e.deltaY * unit;
+    }, { passive: false });
+
     render();
     return { update: render, destroy: off };
 }

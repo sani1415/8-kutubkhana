@@ -1,7 +1,7 @@
-import { html, setHtml, delegate, $, $$, debounce, fmtNumber, fmtBooks, fmtDate, formValues, download, todayIso } from '../dom.js';
+import { html, raw, setHtml, delegate, $, $$, debounce, fmtNumber, fmtBooks, fmtDate, formValues, download, todayIso } from '../dom.js';
 import { icon } from '../icons.js';
 import {
-    bookCard, emptyState, pager, paginate, statusChip, locationBadge, bookFormFields, spineColor, mountPicker,
+    bookCard, emptyState, pager, paginate, statusChip, locationBadge, bookFormFields, spineColor, mountPicker, datalist,
 } from '../components.js';
 import { openSheet, confirmAction, toast, toastError, withBusy } from '../overlay.js';
 import { filterBooks, sortBooks, distinctCabinets, foldText, isBlank, booksToRows, toCSV, CSV_TEMPLATE } from '../../data/rules.ts';
@@ -161,6 +161,7 @@ export function mountBooks(host, app, params) {
         }
         setHtml($('#books-pager', host), pager({ ...p, prefix: 'books' }));
         renderBulk();
+        if (openId) reopenDrawer();
     }
 
     function renderBulk() {
@@ -213,7 +214,18 @@ export function mountBooks(host, app, params) {
             buildFilterPanel();
         },
         'filter:close': () => toggleFilterPanel(false),
-        'drawer:edit': (el) => openBookEditor(app, el.dataset.id),
+        'drawer:edit': (el) => {
+            const drawer = el.closest('.book-drawer');
+            const b = repo.book(el.dataset.id);
+            if (!drawer || !b) return openBookEditor(app, el.dataset.id);
+            setHtml(drawer, drawerEditForm(repo, b));
+            drawer.querySelector('input[name=name]')?.focus({ preventScroll: true });
+        },
+        'drawer:cancel': (el) => {
+            const drawer = el.closest('.book-drawer');
+            const b = repo.book(el.dataset.id);
+            if (drawer && b) setHtml(drawer, drawerContent(app, b));
+        },
         'drawer:more': (el) => openBookDetail(app, el.dataset.id),
         'books:menu': () => openBooksMenu(app, host),
         'book:open': (el, ev) => {
@@ -247,6 +259,14 @@ export function mountBooks(host, app, params) {
         },
     });
 
+    // Saving the in-drawer edit form.
+    delegate(host, {
+        'drawer:save': (form) => withBusy(form.querySelector('[type=submit]'), async () => {
+            await repo.updateBook(form.dataset.id, formValues(form)); // re-renders; the drawer reopens
+            toast('تم حفظ التعديلات');
+        }),
+    }, ['submit']);
+
     host.addEventListener('keydown', (e) => {
         if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.book-card')) {
             e.preventDefault();
@@ -257,6 +277,8 @@ export function mountBooks(host, app, params) {
     // ------------------------------------------------------------ phone drawer
     const isPhone = () => matchMedia('(max-width: 759px)').matches;
 
+    let openId = null; // book whose drawer is open (phones)
+
     /** Phones: the row opens a drawer under itself. Wide screens: the detail sheet. */
     function openBook(card) {
         if (!isPhone()) return openBookDetail(app, card.dataset.id);
@@ -264,6 +286,10 @@ export function mountBooks(host, app, params) {
         const same = open && open.previousElementSibling === card;
         if (open) closeDrawer(open);
         if (same) return;
+        attachDrawer(card, true);
+    }
+
+    function attachDrawer(card, animate) {
         const b = repo.book(card.dataset.id);
         if (!b) return;
         const drawer = document.createElement('div');
@@ -272,11 +298,21 @@ export function mountBooks(host, app, params) {
         card.after(drawer);
         card.classList.add('is-open');
         card.setAttribute('aria-expanded', 'true');
-        void drawer.offsetHeight; // commit the closed state so the opening transition runs
+        openId = b.id;
+        if (animate) void drawer.offsetHeight; // commit the closed state so the opening transition runs
+        else drawer.classList.add('no-anim');
         drawer.classList.add('is-open');
     }
 
+    /** After the list re-renders (e.g. a save), show the same drawer again without animating. */
+    function reopenDrawer() {
+        const card = isPhone() && listEl.querySelector(`.book-card[data-id="${CSS.escape(openId)}"]`);
+        if (card) attachDrawer(card, false);
+        else openId = null;
+    }
+
     function closeDrawer(drawer) {
+        openId = null;
         const card = drawer.previousElementSibling;
         card?.classList.remove('is-open');
         card?.setAttribute('aria-expanded', 'false');
@@ -394,6 +430,34 @@ function drawerContent(app, b) {
                 <button type="button" class="btn btn--link btn--sm" data-action="drawer:more" data-id="${b.id}">المزيد ${icon('caret-left')}</button>
             </div>
         </div>`;
+}
+
+/** The drawer turned into a compact edit form (phones). */
+function drawerEditForm(repo, b) {
+    const input = (name, label, { value = b[name], full, list, type = 'text', attrs = '' } = {}) => html`
+        <label class="dfield ${full ? 'dfield--full' : ''}"><span>${label}</span>
+            <input class="input input--sm" name="${name}" type="${type}" value="${isBlank(value) ? '' : value}" ${list ? html`list="${list}"` : ''} ${raw(attrs)}></label>`;
+    return html`
+        <form class="book-drawer__inner drawer-form" data-action="drawer:save" data-id="${b.id}" autocomplete="off">
+            <div class="drawer-form__grid">
+                ${input('name', 'اسم الكتاب', { full: true, attrs: 'required' })}
+                ${input('author', 'المؤلف', { attrs: 'required' })}
+                ${input('editor', 'المحقق')}
+                ${input('category', 'القسم', { list: 'dl-d-categories', attrs: 'required' })}
+                ${input('publisher', 'دار النشر', { list: 'dl-d-publishers' })}
+                ${input('cabinet', 'الصندوق', { attrs: 'required' })}
+                ${input('shelf', 'الطاق')}
+                ${input('year', 'السنة', { attrs: 'inputmode="numeric"' })}
+                ${input('parts', 'الأجزاء', { type: 'number', attrs: 'min="1" inputmode="numeric"' })}
+                ${input('copies', 'النسخ', { type: 'number', attrs: 'min="1" inputmode="numeric"' })}
+                <label class="dfield dfield--full"><span>ملاحظات</span><textarea class="input input--sm" name="notes" rows="2">${isBlank(b.notes) ? '' : b.notes}</textarea></label>
+            </div>
+            ${datalist('dl-d-categories', repo.categories)}${datalist('dl-d-publishers', repo.publishers)}
+            <div class="book-drawer__actions">
+                <button type="submit" class="btn btn--primary btn--sm">${icon('check')} حفظ</button>
+                <button type="button" class="btn btn--ghost btn--sm" data-action="drawer:cancel" data-id="${b.id}">إلغاء</button>
+            </div>
+        </form>`;
 }
 
 function openBooksMenu(app, host) {
