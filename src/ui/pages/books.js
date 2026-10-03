@@ -72,6 +72,7 @@ export function mountBooks(host, app, params) {
         <input type="file" id="import-file" accept=".csv,.xlsx,.xls,.xlsm" hidden>`);
 
     const listEl = $('#books-list', host);
+    const drawers = bookDrawers(app, listEl);
     const qInput = $('#books-q', host);
     if (app.memory.focusSearch) { app.memory.focusSearch = false; setTimeout(() => qInput.focus(), 50); }
 
@@ -162,7 +163,7 @@ export function mountBooks(host, app, params) {
         }
         setHtml($('#books-pager', host), pager({ ...p, prefix: 'books' }));
         renderBulk();
-        if (openId) reopenDrawer();
+        drawers.reopen();
     }
 
     function renderBulk() {
@@ -215,23 +216,9 @@ export function mountBooks(host, app, params) {
             buildFilterPanel();
         },
         'filter:close': () => toggleFilterPanel(false),
-        'drawer:edit': (el) => {
-            const drawer = el.closest('.book-drawer');
-            const b = repo.book(el.dataset.id);
-            if (!drawer || !b) return openBookEditor(app, el.dataset.id);
-            setHtml(drawer, drawerEditForm(repo, b));
-            drawer.querySelector('input[name=name]')?.focus({ preventScroll: true });
-        },
-        'drawer:cancel': (el) => {
-            const drawer = el.closest('.book-drawer');
-            const b = repo.book(el.dataset.id);
-            if (drawer && b) setHtml(drawer, drawerContent(app, b));
-        },
-        'drawer:more': (el) => openBookDetail(app, el.dataset.id),
-        'books:menu': () => openBooksMenu(app, host),
         'book:open': (el, ev) => {
             if (ev.target.closest('input,button:not([data-action="book:open"])')) return;
-            openBook(el);
+            drawers.open(el);
         },
         'book:edit': (el, ev) => { ev.stopPropagation(); openBookEditor(app, el.dataset.id); },
         'books:check': (el, ev) => {
@@ -260,68 +247,12 @@ export function mountBooks(host, app, params) {
         },
     });
 
-    // Saving the in-drawer edit form.
-    delegate(host, {
-        'drawer:save': (form) => withBusy(form.querySelector('[type=submit]'), async () => {
-            await repo.updateBook(form.dataset.id, formValues(form)); // re-renders; the drawer reopens
-            toast('تم حفظ التعديلات');
-        }),
-    }, ['submit']);
-
     host.addEventListener('keydown', (e) => {
         if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.book-card')) {
             e.preventDefault();
-            openBook(e.target);
+            drawers.open(e.target);
         }
     });
-
-    // ------------------------------------------------------------ phone drawer
-    const isPhone = () => matchMedia('(max-width: 759px)').matches;
-
-    let openId = null; // book whose drawer is open (phones)
-
-    /** Phones: the row opens a drawer under itself. Wide screens: the detail sheet. */
-    function openBook(card) {
-        if (!isPhone()) return openBookDetail(app, card.dataset.id);
-        const open = listEl.querySelector('.book-drawer.is-open');
-        const same = open && open.previousElementSibling === card;
-        if (open) closeDrawer(open);
-        if (same) return;
-        attachDrawer(card, true);
-    }
-
-    function attachDrawer(card, animate) {
-        const b = repo.book(card.dataset.id);
-        if (!b) return;
-        const drawer = document.createElement('div');
-        drawer.className = 'book-drawer';
-        setHtml(drawer, drawerContent(app, b));
-        card.after(drawer);
-        card.classList.add('is-open');
-        card.setAttribute('aria-expanded', 'true');
-        openId = b.id;
-        if (animate) void drawer.offsetHeight; // commit the closed state so the opening transition runs
-        else drawer.classList.add('no-anim');
-        drawer.classList.add('is-open');
-    }
-
-    /** After the list re-renders (e.g. a save), show the same drawer again without animating. */
-    function reopenDrawer() {
-        const card = isPhone() && listEl.querySelector(`.book-card[data-id="${CSS.escape(openId)}"]`);
-        if (card) attachDrawer(card, false);
-        else openId = null;
-    }
-
-    function closeDrawer(drawer) {
-        openId = null;
-        const card = drawer.previousElementSibling;
-        card?.classList.remove('is-open');
-        card?.setAttribute('aria-expanded', 'false');
-        drawer.classList.remove('is-open');
-        const remove = () => drawer.remove();
-        drawer.addEventListener('transitionend', remove, { once: true });
-        setTimeout(remove, 450);
-    }
 
     // ------------------------------------------------------- filter dropdown
     const panel = $('#filter-panel', host);
@@ -391,7 +322,7 @@ export function mountBooks(host, app, params) {
     renderAll();
     return {
         update(topic) { if (['books', 'loans', 'taxonomy'].includes(topic)) renderAll(); },
-        destroy: off,
+        destroy() { off(); drawers.destroy(); },
     };
 }
 
@@ -410,6 +341,84 @@ function cabinetCounts(books) {
         else m.set(k, { count: 1, label: b.cabinet.trim() });
     }
     return m;
+}
+
+/**
+ * Phone book drawers for any list of `.book-card`s inside `container`:
+ * a tap opens facts under the row, "تعديل" turns them into a form in place,
+ * and after a save the list re-renders and the same drawer comes back.
+ * On wide screens a tap opens the detail sheet instead.
+ */
+export function bookDrawers(app, container) {
+    const { repo } = app;
+    const isPhone = () => matchMedia('(max-width: 759px)').matches;
+    let openId = null;
+
+    function attach(card, animate) {
+        const b = repo.book(card.dataset.id);
+        if (!b) return;
+        const drawer = document.createElement('div');
+        drawer.className = 'book-drawer';
+        setHtml(drawer, drawerContent(app, b));
+        card.after(drawer);
+        card.classList.add('is-open');
+        card.setAttribute('aria-expanded', 'true');
+        openId = b.id;
+        if (animate) void drawer.offsetHeight; // commit the closed state so the opening transition runs
+        else drawer.classList.add('no-anim');
+        drawer.classList.add('is-open');
+    }
+
+    function close(drawer) {
+        openId = null;
+        const card = drawer.previousElementSibling;
+        card?.classList.remove('is-open');
+        card?.setAttribute('aria-expanded', 'false');
+        drawer.classList.remove('is-open');
+        const remove = () => drawer.remove();
+        drawer.addEventListener('transitionend', remove, { once: true });
+        setTimeout(remove, 450);
+    }
+
+    const offClick = delegate(container, {
+        'drawer:edit': (el) => {
+            const drawer = el.closest('.book-drawer');
+            const b = repo.book(el.dataset.id);
+            if (!drawer || !b) return openBookEditor(app, el.dataset.id);
+            setHtml(drawer, drawerEditForm(repo, b));
+            drawer.querySelector('input[name=name]')?.focus({ preventScroll: true });
+        },
+        'drawer:cancel': (el) => {
+            const drawer = el.closest('.book-drawer');
+            const b = repo.book(el.dataset.id);
+            if (drawer && b) setHtml(drawer, drawerContent(app, b));
+        },
+        'drawer:more': (el) => openBookDetail(app, el.dataset.id),
+    });
+    const offSubmit = delegate(container, {
+        'drawer:save': (form) => withBusy(form.querySelector('[type=submit]'), async () => {
+            await repo.updateBook(form.dataset.id, formValues(form)); // list re-renders, then reopen()
+            toast('تم حفظ التعديلات');
+        }),
+    }, ['submit']);
+
+    return {
+        open(card) {
+            if (!isPhone()) return openBookDetail(app, card.dataset.id);
+            const current = container.querySelector('.book-drawer.is-open');
+            const same = current && current.previousElementSibling === card;
+            if (current) close(current);
+            if (!same) attach(card, true);
+        },
+        /** Call after re-rendering the list to bring back the open drawer without animating. */
+        reopen() {
+            if (!openId) return;
+            const card = isPhone() && container.querySelector(`.book-card[data-id="${CSS.escape(openId)}"]`);
+            if (card) attach(card, false);
+            else openId = null;
+        },
+        destroy() { offClick(); offSubmit(); },
+    };
 }
 
 /** Compact two-column facts shown in the phone drawer. */
