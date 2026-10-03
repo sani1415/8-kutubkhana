@@ -1,7 +1,7 @@
 /** Shared UI pieces. All return `html` values (escaped). */
 import { html, raw, fmtNumber, escapeHtml, setHtml, debounce } from './dom.js';
 import { icon } from './icons.js';
-import { foldText } from '../data/rules.ts';
+import { foldText, isBlank } from '../data/rules.ts';
 
 export function pageHeader({ title, subtitle, actions }) {
     return html`
@@ -34,7 +34,7 @@ export function statusChip(repo, book) {
 
 /** Location badge: "A1 / 3" (cabinet / shelf). */
 export function locationBadge(book) {
-    if (!book.cabinet && !book.shelf) return html`<span class="loc loc--none">بلا موقع</span>`;
+    if (isBlank(book.cabinet) && isBlank(book.shelf)) return html`<span class="loc loc--none">بلا موقع</span>`;
     return html`<span class="loc" title="الصندوق / الطاق">${icon('map-pin')}${book.cabinet || '—'}${book.shelf ? html`<em>/</em>${book.shelf}` : ''}</span>`;
 }
 

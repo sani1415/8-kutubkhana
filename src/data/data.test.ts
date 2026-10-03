@@ -74,18 +74,19 @@ describe('ordering and matching across digit scripts', () => {
     });
     const books = [
         mk('a', 'ج', '60', '7'), mk('b', 'ب', '৫০', '২'), mk('c', 'أ', '50', '1'),
-        mk('d', 'د', '٢٨'), mk('e', 'هـ', '9'), mk('f', 'و', ''),
+        mk('d', 'د', '٢٨'), mk('e', 'هـ', '9'), mk('f', 'و', ''), mk('g', 'ز', '-'),
     ];
 
     it('treats ৫০, ٥٠ and 50 as the same number', () => {
         expect(foldText('৫০/২')).toBe('50/2');
         expect(filterBooks(books, { cabinet: '50' }).map((b) => b.id)).toEqual(['b', 'c']);
         expect(filterBooks(books, { q: '٢٨' }).map((b) => b.id)).toEqual(['d']);
-        expect(distinctCabinets(books)).toEqual(['9', '٢٨', '৫০', '60']);
+        expect(distinctCabinets(books)).toEqual(['9', '٢٨', '৫০', '60', '-']);
     });
 
     it('sorts by cabinet, then shelf, then title, numerically, blanks last', () => {
-        expect(sortBooks(books, 'location').map((b) => b.id)).toEqual(['e', 'd', 'c', 'b', 'a', 'f']);
+        expect(sortBooks(books, 'location').map((b) => b.id)).toEqual(['e', 'd', 'c', 'b', 'a', 'g', 'f']);
+        expect(missingFields(books[6])).toContain('cabinet');
     });
 
     it('matches picked categories exactly', () => {

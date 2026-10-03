@@ -35,6 +35,13 @@ export function parseYear(value: unknown): string {
 
 const clean = (v: unknown) => String(v ?? '').trim();
 
+/** Placeholders older imports wrote into required columns ("-" for an empty cabinet) count as empty. */
+const PLACEHOLDERS = new Set(['-', '—', '–', '_', '?', '؟', '.']);
+export function isBlank(v: unknown): boolean {
+    const s = clean(v);
+    return s === '' || PLACEHOLDERS.has(s);
+}
+
 export function normalizeBookInput(raw: Partial<Record<keyof BookInput, unknown>>): BookInput {
     return {
         name: clean(raw.name),
@@ -137,8 +144,8 @@ const collator = new Intl.Collator('ar', { numeric: true, sensitivity: 'base' })
 
 /** Natural compare after digit normalisation ("৯" < "10", "A2" < "A10"); blanks last. */
 export function compareText(a: unknown, b: unknown): number {
-    const x = foldText(a);
-    const y = foldText(b);
+    const x = isBlank(a) ? '' : foldText(a);
+    const y = isBlank(b) ? '' : foldText(b);
     if (!x || !y) return x ? -1 : y ? 1 : 0;
     return collator.compare(x, y);
 }
@@ -183,7 +190,7 @@ export const REPORT_FIELDS = {
 export type ReportField = keyof typeof REPORT_FIELDS;
 
 export function missingFields(book: Book): ReportField[] {
-    return (Object.keys(REPORT_FIELDS) as ReportField[]).filter((k) => clean(book[k]) === '');
+    return (Object.keys(REPORT_FIELDS) as ReportField[]).filter((k) => isBlank(book[k]));
 }
 
 // ---------------------------------------------------------------------------
@@ -320,7 +327,7 @@ export function planImport(rows: string[][], existing: Book[]): ImportPlan {
             const pick = (f: keyof BookInput) => {
                 if (!index.has(f)) return target[f];
                 const v = clean(get(f));
-                return v === '' && REQUIRED.includes(f) ? target[f] : v;
+                return isBlank(v) && REQUIRED.includes(f) ? target[f] : v;
             };
             const book = normalizeBookInput({
                 name: pick('name'), author: pick('author'), category: pick('category'), editor: pick('editor'),

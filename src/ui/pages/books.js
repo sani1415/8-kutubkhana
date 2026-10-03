@@ -4,7 +4,7 @@ import {
     bookCard, emptyState, pager, paginate, statusChip, locationBadge, bookFormFields, spineColor, mountPicker,
 } from '../components.js';
 import { openSheet, confirmAction, toast, toastError, withBusy } from '../overlay.js';
-import { filterBooks, sortBooks, distinctCabinets, foldText, booksToRows, toCSV, CSV_TEMPLATE } from '../../data/rules.ts';
+import { filterBooks, sortBooks, distinctCabinets, foldText, isBlank, booksToRows, toCSV, CSV_TEMPLATE } from '../../data/rules.ts';
 
 const PAGE_SIZE = 40;
 const TOP_CATEGORY_CHIPS = 24; // the rest are reachable from the filters sheet
@@ -120,7 +120,7 @@ export function mountBooks(host, app, params) {
         const grouped = state.sort === 'location';
         const counts = grouped ? cabinetCounts(rows) : null;
         const startsGroup = (b, i) => grouped && (i === 0 || foldText(p.slice[i - 1].cabinet) !== foldText(b.cabinet));
-        const groupLabel = (b) => html`${icon('archive-box')} ${b.cabinet ? `الصندوق ${b.cabinet}` : 'بلا صندوق'} <small>${fmtBooks(counts.get(foldText(b.cabinet)) || 0)}</small>`;
+        const groupLabel = (b) => html`${icon('archive-box')} ${isBlank(b.cabinet) ? 'بلا صندوق' : `الصندوق ${b.cabinet}`} <small>${fmtBooks(counts.get(foldText(b.cabinet)) || 0)}</small>`;
 
         const useTable = view === 'table' && matchMedia('(min-width: 900px)').matches;
         if (useTable) {
