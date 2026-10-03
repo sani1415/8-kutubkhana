@@ -18,13 +18,14 @@ const readSort = () => readPref('ktb:books-sort', 'location');
 
 export function mountBooks(host, app, params) {
     const { repo } = app;
-    const fromLink = ['category', 'status', 'author', 'publisher', 'cabinet'].some((k) => params.get(k));
+    const fromLink = ['category', 'status', 'author', 'publisher', 'cabinet', 'sort'].some((k) => params.get(k));
     const state = app.memory.books && !fromLink
         ? app.memory.books
         : { q: '', status: '', category: '', author: '', publisher: '', cabinet: '', sort: readSort(), page: 1 };
     for (const k of ['category', 'status', 'author', 'publisher', 'cabinet']) {
         if (params.get(k)) state[k] = params.get(k);
     }
+    if (params.get('sort')) state.sort = params.get('sort');
     app.memory.books = state;
     const selected = new Set();
     let view = readView();

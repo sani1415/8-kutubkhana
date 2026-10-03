@@ -4,7 +4,7 @@
  */
 import { html, setHtml, $, $$, delegate, formValues } from './dom.js';
 import { icon } from './icons.js';
-import { openSheet, closeAllSheets, toast, toastError, withBusy } from './overlay.js';
+import { openSheet, closeAllSheets, closeTopSheet, confirmAction, toast, toastError, withBusy } from './overlay.js';
 import { PAGES, NAV_GROUPS, MOBILE_TABS } from './pages/index.js';
 import { setCategoryOrder } from './components.js';
 
@@ -228,6 +228,28 @@ export function startShell(root, repo) {
 
     const PAGE_ORDER = Object.keys(PAGES);
 
+    /**
+     * Android back button (inside the app only): close an open sheet, else go
+     * to the home page, and on the home page ask before closing the app.
+     */
+    async function setupBackButton() {
+        if (!window.Capacitor?.isNativePlatform?.()) return;
+        const { App } = await import('@capacitor/app');
+        let asking = false;
+        App.addListener('backButton', async () => {
+            if (closeTopSheet()) return;
+            const openPanel = document.querySelector('.dropdown.is-open');
+            if (openPanel) { openPanel.parentElement?.querySelector('.filter-btn.is-on, [data-action="books:filters"].is-on')?.click(); return; }
+            if (!repo.user || !repo.hasAccess) return App.minimizeApp();
+            if (current?.id !== 'dashboard') return app.go('/');
+            if (asking) return;
+            asking = true;
+            const ok = await confirmAction({ title: 'إغلاق التطبيق؟', message: 'هل تريد الخروج من مكتبة المصباح؟', confirmLabel: 'خروج' });
+            asking = false;
+            if (ok) App.exitApp();
+        });
+    }
+
     function route() {
         if (!repo.user || !repo.hasAccess) return;
         const { path, params } = parseHash();
@@ -293,6 +315,7 @@ export function startShell(root, repo) {
     });
 
     setCategoryOrder(repo.categories);
+    setupBackButton();
     unsubscribe = () => window.removeEventListener('hashchange', route);
     renderGate();
     return { app, stop: () => unsubscribe?.() };

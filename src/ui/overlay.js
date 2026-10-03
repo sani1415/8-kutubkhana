@@ -49,6 +49,14 @@ export function openSheet({ title, body, size = 'md', onMount, actions = {} }) {
     });
 }
 
+/** Close the top-most sheet; returns false when none is open. */
+export function closeTopSheet() {
+    const top = stack.at(-1);
+    if (!top) return false;
+    top.querySelector('[data-action="sheet:close"]')?.click();
+    return true;
+}
+
 export function closeAllSheets() {
     [...stack].forEach((d) => d.close());
 }
