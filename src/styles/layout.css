@@ -275,3 +275,13 @@ html[data-nav='forward'] { --vt-from: -22px; --vt-to: 14px; }
 html[data-nav='back'] { --vt-from: 22px; --vt-to: -14px; }
 @keyframes vt-out { to { opacity: 0; transform: translateX(var(--vt-to, 0)); } }
 @keyframes vt-in { from { opacity: 0; transform: translateX(var(--vt-from, 0)); } }
+
+/* phones: while typing, the floating tab bar steps aside so it never covers the field */
+.tabbar { transition: transform 220ms var(--ease-out), opacity 180ms; }
+@media (max-width: 759px) {
+    body:has(#page :is(input:not([type='checkbox']):not([type='radio']), textarea, select):focus) .tabbar {
+        transform: translateY(140%);
+        opacity: 0;
+        pointer-events: none;
+    }
+}
