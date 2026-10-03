@@ -74,6 +74,14 @@ export function debounce(fn, ms = 160) {
 const num = new Intl.NumberFormat('ar-u-nu-latn');
 export const fmtNumber = (n) => num.format(n ?? 0);
 
+/** "كتاب واحد" / "كتابان" / "5 كتب" / "12 كتاباً" */
+export function fmtBooks(n) {
+    if (n === 1) return 'كتاب واحد';
+    if (n === 2) return 'كتابان';
+    const tens = n % 100;
+    return `${num.format(n)} ${tens >= 3 && tens <= 10 ? 'كتب' : 'كتاباً'}`;
+}
+
 const gregorian = new Intl.DateTimeFormat('ar-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' });
 const gregorianShort = new Intl.DateTimeFormat('ar-u-nu-latn', { day: 'numeric', month: 'short' });
 const weekday = new Intl.DateTimeFormat('ar-u-nu-latn', { weekday: 'long' });

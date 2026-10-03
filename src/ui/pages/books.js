@@ -1,23 +1,27 @@
-import { html, setHtml, delegate, $, $$, debounce, fmtNumber, fmtDate, formValues, download, todayIso } from '../dom.js';
+import { html, setHtml, delegate, $, $$, debounce, fmtNumber, fmtBooks, fmtDate, formValues, download, todayIso } from '../dom.js';
 import { icon } from '../icons.js';
 import {
     bookCard, emptyState, pager, paginate, statusChip, locationBadge, bookFormFields, spineColor, mountPicker,
 } from '../components.js';
 import { openSheet, confirmAction, toast, toastError, withBusy } from '../overlay.js';
-import { filterBooks, booksToRows, toCSV, CSV_TEMPLATE } from '../../data/rules.ts';
+import { filterBooks, sortBooks, distinctCabinets, foldText, booksToRows, toCSV, CSV_TEMPLATE } from '../../data/rules.ts';
 
 const PAGE_SIZE = 40;
-const VIEW_KEY = 'ktb:books-view';
+const TOP_CATEGORY_CHIPS = 24; // the rest are reachable from the filters sheet
+const SORTS = [['location', 'حسب الموقع'], ['name', 'حسب العنوان'], ['new', 'الأحدث إضافة']];
 
-const readView = () => { try { return localStorage.getItem(VIEW_KEY) || 'cards'; } catch { return 'cards'; } };
-const saveView = (v) => { try { localStorage.setItem(VIEW_KEY, v); } catch { /* private mode */ } };
+const readPref = (key, fallback) => { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } };
+const savePref = (key, v) => { try { localStorage.setItem(key, v); } catch { /* private mode */ } };
+const readView = () => readPref('ktb:books-view', 'cards');
+const saveView = (v) => savePref('ktb:books-view', v);
+const readSort = () => readPref('ktb:books-sort', 'location');
 
 export function mountBooks(host, app, params) {
     const { repo } = app;
     const fromLink = ['category', 'status', 'author', 'publisher', 'cabinet'].some((k) => params.get(k));
     const state = app.memory.books && !fromLink
         ? app.memory.books
-        : { q: '', status: '', category: '', author: '', publisher: '', cabinet: '', sort: 'new', page: 1 };
+        : { q: '', status: '', category: '', author: '', publisher: '', cabinet: '', sort: readSort(), page: 1 };
     for (const k of ['category', 'status', 'author', 'publisher', 'cabinet']) {
         if (params.get(k)) state[k] = params.get(k);
     }
@@ -46,7 +50,13 @@ export function mountBooks(host, app, params) {
                 ${[['', 'الكل'], ['متاح', 'متاح'], ['معار', 'معار']].map(([v, l]) => html`
                     <button role="tab" data-action="books:status" data-value="${v}" class="${state.status === v ? 'is-on' : ''}">${l}</button>`)}
             </div>
-            <button class="btn btn--ghost btn--sm" data-action="books:filters">${icon('sliders-horizontal')} فلاتر <span class="badge" id="filter-badge" hidden></span></button>
+            <label class="sort-select" title="ترتيب الكتب">
+                ${icon('sort-ascending')}
+                <select id="books-sort" aria-label="الترتيب">
+                    ${SORTS.map(([v, l]) => html`<option value="${v}" ${state.sort === v ? 'selected' : ''}>${l}</option>`)}
+                </select>
+            </label>
+            <button class="btn btn--ghost btn--sm" data-action="books:filters" aria-label="فلاتر">${icon('sliders-horizontal')}<span class="hide-sm">فلاتر</span> <span class="badge" id="filter-badge" hidden></span></button>
             <div class="segmented desktop-only" aria-label="طريقة العرض">
                 <button data-action="books:view" data-value="cards" class="${view === 'cards' ? 'is-on' : ''}" aria-label="بطاقات">${icon('squares-four')}</button>
                 <button data-action="books:view" data-value="table" class="${view === 'table' ? 'is-on' : ''}" aria-label="جدول">${icon('rows')}</button>
@@ -64,19 +74,22 @@ export function mountBooks(host, app, params) {
     if (app.memory.focusSearch) { app.memory.focusSearch = false; setTimeout(() => qInput.focus(), 50); }
 
     function currentRows() {
-        let rows = filterBooks(repo.books, state);
-        if (state.sort === 'name') rows = [...rows].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-        if (state.sort === 'location') rows = [...rows].sort((a, b) => `${a.cabinet}/${a.shelf}`.localeCompare(`${b.cabinet}/${b.shelf}`, 'ar', { numeric: true }));
-        return rows;
+        return sortBooks(filterBooks(repo.books, state), state.sort);
     }
 
     function renderChips() {
         const counts = repo.countBy('category');
         const cats = [...counts].sort((a, b) => b[1] - a[1]);
+        const top = cats.slice(0, TOP_CATEGORY_CHIPS);
+        // Keep the chosen category visible even when it is not among the largest.
+        if (state.category && !top.some(([c]) => c === state.category)) {
+            top.unshift([state.category, counts.get(state.category) || 0]);
+        }
         setHtml($('#cat-chips', host), html`
             <button class="pill ${!state.category ? 'is-on' : ''}" data-action="books:cat" data-value="">الكل</button>
-            ${cats.map(([c, n]) => html`<button class="pill ${state.category === c ? 'is-on' : ''}" data-action="books:cat" data-value="${c}" style="--spine:${spineColor(c)}">
-                <i class="pill__dot"></i>${c}<small>${fmtNumber(n)}</small></button>`)}`);
+            ${top.map(([c, n]) => html`<button class="pill ${state.category === c ? 'is-on' : ''}" data-action="books:cat" data-value="${c}" style="--spine:${spineColor(c)}">
+                <i class="pill__dot"></i>${c}<small>${fmtNumber(n)}</small></button>`)}
+            ${cats.length > TOP_CATEGORY_CHIPS ? html`<button class="pill" data-action="books:filters">${icon('dots-three')} كل الأقسام (${fmtNumber(cats.length)})</button>` : ''}`);
     }
 
     function renderActiveFilters() {
@@ -103,6 +116,12 @@ export function mountBooks(host, app, params) {
             return;
         }
 
+        // In location order, mark where each cabinet starts so a shelf reads as one block.
+        const grouped = state.sort === 'location';
+        const counts = grouped ? cabinetCounts(rows) : null;
+        const startsGroup = (b, i) => grouped && (i === 0 || foldText(p.slice[i - 1].cabinet) !== foldText(b.cabinet));
+        const groupLabel = (b) => html`${icon('archive-box')} ${b.cabinet ? `الصندوق ${b.cabinet}` : 'بلا صندوق'} <small>${fmtBooks(counts.get(foldText(b.cabinet)) || 0)}</small>`;
+
         const useTable = view === 'table' && matchMedia('(min-width: 900px)').matches;
         if (useTable) {
             setHtml(listEl, html`
@@ -114,6 +133,7 @@ export function mountBooks(host, app, params) {
                         ${app.canEdit ? html`<th></th>` : ''}
                     </tr></thead>
                     <tbody>${p.slice.map((b, i) => html`
+                        ${startsGroup(b, i) ? html`<tr class="group-row"><td colspan="${app.canEdit ? 10 : 8}">${groupLabel(b)}</td></tr>` : ''}
                         <tr data-action="book:open" data-id="${b.id}" class="${selected.has(b.id) ? 'is-selected' : ''}">
                             ${app.canEdit ? html`<td class="col-check"><input type="checkbox" data-action="books:check" data-id="${b.id}" ${selected.has(b.id) ? 'checked' : ''} aria-label="تحديد"></td>` : ''}
                             <td class="num">${fmtNumber(p.from + i)}</td>
@@ -129,7 +149,9 @@ export function mountBooks(host, app, params) {
                     </tbody>
                 </table></div>`);
         } else {
-            setHtml(listEl, html`<div class="book-grid">${p.slice.map((b, i) => bookCard(repo, b, { canEdit: app.canEdit, index: i }))}</div>`);
+            setHtml(listEl, html`<div class="book-grid">${p.slice.map((b, i) => html`
+                ${startsGroup(b, i) ? html`<h2 class="group-head">${groupLabel(b)}</h2>` : ''}
+                ${bookCard(repo, b, { canEdit: app.canEdit, index: i })}`)}</div>`);
         }
         setHtml($('#books-pager', host), pager({ ...p, prefix: 'books' }));
         renderBulk();
@@ -152,6 +174,10 @@ export function mountBooks(host, app, params) {
     const go = (patch) => { Object.assign(state, patch, { page: patch.page ?? 1 }); renderAll(); };
 
     qInput.addEventListener('input', debounce(() => go({ q: qInput.value }), 140));
+    $('#books-sort', host).addEventListener('change', (e) => {
+        savePref('ktb:books-sort', e.target.value);
+        go({ sort: e.target.value });
+    });
 
     const off = delegate(host, {
         'books:status': (el) => {
@@ -230,24 +256,21 @@ export function mountBooks(host, app, params) {
 
 function openFilters(app, state, apply) {
     const { repo } = app;
+    const cats = [...repo.countBy('category')].sort((a, b) => b[1] - a[1]).map(([c, n]) => ({ id: c, label: c, sub: `${fmtNumber(n)} كتاب` }));
     const authors = repo.authors().map((a) => ({ id: a.name, label: a.name, sub: `${fmtNumber(a.count)} كتاب` }));
     const pubs = [...repo.countBy('publisher')].map(([p, n]) => ({ id: p, label: p, sub: `${fmtNumber(n)} كتاب` }));
-    const cabinets = [...new Set(repo.books.map((b) => b.cabinet).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar', { numeric: true }));
+    const cabinets = distinctCabinets(repo.books);
+    const chosenCabinet = cabinets.find((c) => foldText(c) === foldText(state.cabinet)) || '';
     openSheet({
         title: 'تصفية الكتب',
         body: html`
             <form class="stack" data-action="filters:apply">
+                <div class="field"><span class="field__label">القسم</span><div id="f-cat"></div></div>
                 <div class="field"><span class="field__label">المؤلف</span><div id="f-author"></div></div>
                 <div class="field"><span class="field__label">دار النشر</span><div id="f-pub"></div></div>
                 <label class="field"><span class="field__label">الصندوق</span>
-                    <select class="input" name="cabinet"><option value="">الكل</option>${cabinets.map((c) => html`<option ${state.cabinet === c ? 'selected' : ''}>${c}</option>`)}</select>
-                </label>
-                <label class="field"><span class="field__label">الترتيب</span>
-                    <select class="input" name="sort">
-                        <option value="new" ${state.sort === 'new' ? 'selected' : ''}>الأحدث إضافة</option>
-                        <option value="name" ${state.sort === 'name' ? 'selected' : ''}>حسب العنوان</option>
-                        <option value="location" ${state.sort === 'location' ? 'selected' : ''}>حسب الموقع (للجرد)</option>
-                    </select>
+                    <select class="input" name="cabinet"><option value="">الكل</option>${cabinets.map((c) => html`<option ${chosenCabinet === c ? 'selected' : ''}>${c}</option>`)}</select>
+                    <span class="field__hint">الأرقام البنغالية والعربية والإنجليزية تُعامل كرقم واحد (৫০ = ٥٠ = 50).</span>
                 </label>
                 <div class="form-actions">
                     <button type="button" class="btn btn--ghost" data-action="filters:clear">مسح الفلاتر</button>
@@ -255,17 +278,18 @@ function openFilters(app, state, apply) {
                 </div>
             </form>`,
         onMount(panel, close) {
+            mountPicker(panel.querySelector('#f-cat'), { name: 'category', items: cats, placeholder: `ابحث في ${fmtNumber(cats.length)} قسماً…`, selectedId: state.category, allowClear: true });
             mountPicker(panel.querySelector('#f-author'), { name: 'author', items: authors, placeholder: 'كل المؤلفين', selectedId: state.author, allowClear: true });
             mountPicker(panel.querySelector('#f-pub'), { name: 'publisher', items: pubs, placeholder: 'كل دور النشر', selectedId: state.publisher, allowClear: true });
             delegate(panel, {
                 'filters:apply': (form) => {
                     const v = formValues(form);
-                    Object.assign(state, { author: v.author, publisher: v.publisher, cabinet: v.cabinet, sort: v.sort, page: 1 });
+                    Object.assign(state, { category: v.category, author: v.author, publisher: v.publisher, cabinet: v.cabinet, page: 1 });
                     apply();
                     close();
                 },
                 'filters:clear': () => {
-                    Object.assign(state, { author: '', publisher: '', cabinet: '', sort: 'new', page: 1 });
+                    Object.assign(state, { category: '', author: '', publisher: '', cabinet: '', page: 1 });
                     apply();
                     close();
                 },
@@ -274,13 +298,23 @@ function openFilters(app, state, apply) {
     });
 }
 
+/** Books per cabinet, keyed by the digit-normalised cabinet name. */
+function cabinetCounts(books) {
+    const m = new Map();
+    for (const b of books) {
+        const k = foldText(b.cabinet);
+        m.set(k, (m.get(k) || 0) + 1);
+    }
+    return m;
+}
+
 function openBooksMenu(app, host) {
     openSheet({
         title: 'استيراد وتصدير',
         size: 'sm',
         body: html`<div class="quick-list">
             ${app.canEdit ? html`<button class="quick" data-action="menu:import"><span class="quick__icon">${icon('upload-simple', 'duotone')}</span><span><strong>استيراد من Excel أو CSV</strong><small>نعرض لك ما سيتغير قبل الحفظ</small></span></button>` : ''}
-            <button class="quick" data-action="menu:export"><span class="quick__icon">${icon('download-simple', 'duotone')}</span><span><strong>تصدير كل الكتب (CSV)</strong><small>يفتح في Excel مباشرة</small></span></button>
+            <button class="quick" data-action="menu:export"><span class="quick__icon">${icon('download-simple', 'duotone')}</span><span><strong>تصدير كل الكتب (CSV)</strong><small>مرتبة حسب الموقع، ويمكن تعديلها ثم استيرادها</small></span></button>
             <button class="quick" data-action="menu:template"><span class="quick__icon">${icon('file-csv', 'duotone')}</span><span><strong>تنزيل قالب الاستيراد</strong><small>بالأعمدة المطلوبة ومثال</small></span></button>
         </div>`,
         actions: {
@@ -288,7 +322,7 @@ function openBooksMenu(app, host) {
             'menu:export': (_e, _v, close) => {
                 close();
                 if (!app.repo.books.length) return toast('لا توجد كتب للتصدير', 'info');
-                download(`books_${todayIso()}.csv`, '﻿' + toCSV(booksToRows(app.repo.books)), 'text/csv;charset=utf-8');
+                download(`books_${todayIso()}.csv`, '﻿' + toCSV(booksToRows(sortBooks(app.repo.books, 'location'))), 'text/csv;charset=utf-8');
             },
             'menu:template': (_e, _v, close) => { close(); download('books_template.csv', '﻿' + CSV_TEMPLATE, 'text/csv;charset=utf-8'); },
         },
@@ -307,7 +341,7 @@ async function readImportFile(file) {
     return file.text();
 }
 
-async function importBooks(app, file) {
+export async function importBooks(app, file) {
     const { repo } = app;
     let plan;
     try {

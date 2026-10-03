@@ -3,7 +3,8 @@ import { LibraryRepository } from './repository';
 import { createMemoryBackend } from './backends/memory';
 import { demoSeed } from './backends/demo-seed';
 import {
-    CSV_TEMPLATE, filterBooks, foldText, missingFields, parseCSV, parseCount, parseYear, planImport, toWesternDigits,
+    CSV_TEMPLATE, ID_HEADER, booksToRows, distinctCabinets, filterBooks, foldText, missingFields, parseCSV, parseCount,
+    parseYear, planImport, sortBooks, toCSV, toWesternDigits,
 } from './rules';
 import type { Book } from './types';
 
@@ -62,7 +63,84 @@ describe('rules', () => {
 
     it('lists missing fields', () => {
         const b = demoSeed().books.find((x) => x.name === 'الرسالة القشيرية')!;
-        expect(missingFields(b)).toEqual(['cabinet', 'editor', 'year', 'shelf', 'notes']);
+        expect(missingFields(b)).toEqual(['cabinet', 'editor', 'year', 'shelf']);
+    });
+});
+
+describe('ordering and matching across digit scripts', () => {
+    const mk = (id: string, name: string, cabinet: string, shelf = ''): Book => ({
+        id, name, author: 'م', category: 'عام', editor: '', parts: 1, publisher: '', year: '', copies: 1,
+        status: 'متاح', cabinet, shelf, notes: '',
+    });
+    const books = [
+        mk('a', 'ج', '60', '7'), mk('b', 'ب', '৫০', '২'), mk('c', 'أ', '50', '1'),
+        mk('d', 'د', '٢٨'), mk('e', 'هـ', '9'), mk('f', 'و', ''),
+    ];
+
+    it('treats ৫০, ٥٠ and 50 as the same number', () => {
+        expect(foldText('৫০/২')).toBe('50/2');
+        expect(filterBooks(books, { cabinet: '50' }).map((b) => b.id)).toEqual(['b', 'c']);
+        expect(filterBooks(books, { q: '٢٨' }).map((b) => b.id)).toEqual(['d']);
+        expect(distinctCabinets(books)).toEqual(['9', '٢٨', '৫০', '60']);
+    });
+
+    it('sorts by cabinet, then shelf, then title, numerically, blanks last', () => {
+        expect(sortBooks(books, 'location').map((b) => b.id)).toEqual(['e', 'd', 'c', 'b', 'a', 'f']);
+    });
+
+    it('matches picked categories exactly', () => {
+        const list = [mk('x', 'x', '1'), { ...mk('y', 'y', '1'), category: 'عام/تاريخ' }];
+        expect(filterBooks(list, { category: 'عام' }).map((b) => b.id)).toEqual(['x']);
+    });
+});
+
+describe('export → fill in → import round trip', () => {
+    const existing = demoSeed().books;
+
+    it('re-importing an untouched export changes nothing', () => {
+        const plan = planImport(parseCSV(toCSV(booksToRows(existing))), existing);
+        expect(plan.add).toHaveLength(0);
+        expect(plan.update).toHaveLength(0);
+        expect(plan.unchanged).toBe(existing.length);
+    });
+
+    it('filling a missing publisher updates the same book instead of adding a duplicate', () => {
+        const target = existing.find((b) => !b.publisher)!; // كليلة ودمنة
+        const rows = booksToRows([target], { header: 'الحقول الناقصة', value: () => 'دار النشر' });
+        const pubCol = (rows[0] as string[]).indexOf('دار النشر');
+        (rows[1] as unknown[])[pubCol] = 'دار المعارف';
+        const plan = planImport(parseCSV(toCSV(rows)), existing);
+        expect(plan.add).toHaveLength(0);
+        expect(plan.update).toHaveLength(1);
+        expect(plan.update[0].id).toBe(target.id);
+        expect(plan.update[0].changes).toEqual([{ field: 'دار النشر', old: '', new: 'دار المعارف' }]);
+    });
+
+    it('keeps required fields when their cells are left blank, and can fix a title', () => {
+        const target = existing[0];
+        const rows = booksToRows([target]);
+        const head = rows[0] as string[];
+        (rows[1] as unknown[])[head.indexOf('الصندوق')] = '';
+        (rows[1] as unknown[])[head.indexOf('اسم الكتاب')] = 'الجامع الصحيح';
+        const plan = planImport(parseCSV(toCSV(rows)), existing);
+        expect(plan.update[0].book.cabinet).toBe(target.cabinet);
+        expect(plan.update[0].changes.map((c) => c.field)).toEqual(['اسم الكتاب']);
+    });
+
+    it('an export header carries the id column', () => {
+        expect(booksToRows(existing)[0]).toContain(ID_HEADER);
+    });
+
+    it('updates through the repository without duplicating', async () => {
+        const r = await repo();
+        const target = r.books.find((b) => !b.publisher)!;
+        const rows = booksToRows([target]);
+        (rows[1] as unknown[])[(rows[0] as string[]).indexOf('دار النشر')] = 'دار المعارف';
+        const before = r.books.length;
+        const result = await r.runImport(r.previewImport(toCSV(rows)));
+        expect(result).toMatchObject({ added: 0, updated: 1, failed: 0 });
+        expect(r.books).toHaveLength(before);
+        expect(r.book(target.id)!.publisher).toBe('دار المعارف');
     });
 });
 

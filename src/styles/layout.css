@@ -6,13 +6,13 @@
 .page {
     max-width: 1240px;
     margin: 0 auto;
-    padding: var(--s-4) var(--s-4) calc(var(--tabbar-h) + var(--safe-b) + 40px);
+    padding: var(--s-3) var(--s-3) calc(var(--tabbar-h) + var(--safe-b) + 32px);
     outline: none;
 }
 .page--enter { animation: rise var(--t-med) var(--ease-out) both; }
 
 @media (min-width: 640px) {
-    .page { padding-inline: var(--s-5); }
+    .page { padding-inline: var(--s-4); }
 }
 
 /* brand */
@@ -33,7 +33,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: calc(var(--safe-t) + 10px) var(--s-4) 10px;
+    padding: calc(var(--safe-t) + 6px) var(--s-3) 6px;
     background: color-mix(in srgb, var(--bg) 82%, transparent);
     backdrop-filter: saturate(1.4) blur(14px);
     -webkit-backdrop-filter: saturate(1.4) blur(14px);
@@ -45,7 +45,7 @@
     position: fixed;
     z-index: 30;
     inset-inline: 12px;
-    bottom: calc(10px + var(--safe-b));
+    bottom: calc(8px + var(--safe-b));
     height: var(--tabbar-h);
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -74,15 +74,15 @@
     transition: color var(--t-fast), background var(--t-fast), transform var(--t-fast) var(--ease-spring);
 }
 .tab:active { transform: scale(0.92); }
-.tab .nav__icon { font-size: 22px; }
+.tab .nav__icon { font-size: 21px; }
 .tab.is-active { color: var(--accent-deep); }
 .tab.is-active .nav__icon .ph { display: none; }
 .tab:not(.is-active) .nav__icon .ph-fill { display: none; }
 .tab--fab {
     justify-self: center;
-    width: 52px;
-    height: 52px;
-    border-radius: 18px;
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
     background: var(--accent-deep);
     color: #fff;
     font-size: 24px;
@@ -101,7 +101,7 @@
         grid-template-columns: var(--rail-w) minmax(0, 1fr);
     }
     .topbar, .tabbar { display: none; }
-    .page { padding: var(--s-6) var(--s-6) var(--s-7); }
+    .page { padding: 20px 28px 32px; }
 
     .rail {
         position: sticky;
@@ -109,8 +109,8 @@
         height: 100dvh;
         display: flex;
         flex-direction: column;
-        gap: var(--s-5);
-        padding: var(--s-5) var(--s-4);
+        gap: var(--s-4);
+        padding: var(--s-4) var(--s-3);
         border-inline-start: 1px solid var(--line);
         background: linear-gradient(180deg, var(--surface-2), var(--bg));
         overflow-y: auto;
@@ -118,7 +118,7 @@
     .rail .brand { padding: 0 var(--s-2); }
 }
 
-.nav { display: flex; flex-direction: column; gap: var(--s-4); flex: 1; }
+.nav { display: flex; flex-direction: column; gap: var(--s-3); flex: 1; }
 .nav__group { display: flex; flex-direction: column; gap: 2px; }
 .nav__label {
     padding: 0 var(--s-3) var(--s-1);
@@ -132,13 +132,14 @@
     display: flex;
     align-items: center;
     gap: var(--s-3);
-    padding: 9px var(--s-3);
+    padding: 6px var(--s-3);
     border-radius: var(--r-sm);
     color: var(--ink-2);
+    font-size: var(--fs-sm);
     font-weight: 500;
     transition: background var(--t-fast), color var(--t-fast);
 }
-.nav__link .nav__icon { font-size: 20px; display: inline-flex; }
+.nav__link .nav__icon { font-size: 19px; display: inline-flex; }
 .nav__link .ph-fill { display: none; }
 .nav__link:hover { background: rgb(30 31 36 / 0.04); color: var(--ink); }
 .nav__link.is-active { background: var(--surface); color: var(--accent-ink); box-shadow: var(--sh-1); }
@@ -147,7 +148,7 @@
 .nav__link.is-active::before {
     content: '';
     position: absolute;
-    inset-inline-start: -16px;
+    inset-inline-start: -12px;
     top: 10px;
     bottom: 10px;
     width: 4px;
@@ -186,7 +187,7 @@
     justify-content: space-between;
     gap: var(--s-4);
     flex-wrap: wrap;
-    margin-bottom: var(--s-5);
+    margin-bottom: var(--s-3);
 }
 .page-title {
     font-family: var(--font-display);
@@ -198,7 +199,7 @@
 .page-actions { display: flex; gap: var(--s-2); align-items: center; flex-wrap: wrap; }
 
 @media (min-width: 1024px) {
-    .page-title { font-size: 2rem; }
+    .page-title { font-size: 1.6rem; }
 }
 
 /* ------------------------------------------------------------------ auth */

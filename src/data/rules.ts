@@ -80,14 +80,19 @@ export function bookKey(b: Pick<BookInput, 'name' | 'author'> & { publisher?: st
 // Search
 // ---------------------------------------------------------------------------
 
-/** Lower-case and strip Arabic diacritics/tatweel so "الْكِتَاب" matches "الكتاب". */
+/**
+ * Normalise text for matching: lower-case, Western digits (so ৫০ = ٥٠ = 50),
+ * no Arabic diacritics/tatweel, unified alef/ya/ta-marbuta, single spaces.
+ */
 export function foldText(value: unknown): string {
-    return String(value ?? '')
+    return toWesternDigits(value)
         .toLowerCase()
         .replace(/[ً-ٰٟـ]/g, '')
         .replace(/[أإآ]/g, 'ا')
         .replace(/ى/g, 'ي')
-        .replace(/ة/g, 'ه');
+        .replace(/ة/g, 'ه')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 export interface BookFilters {
@@ -100,11 +105,12 @@ export interface BookFilters {
 }
 
 export function filterBooks(books: Book[], f: BookFilters): Book[] {
-    const q = foldText(f.q).trim();
+    const q = foldText(f.q);
+    // Picked values (chips, lists, links) match exactly: "سيرة" must not pull in "سيرة/تراجم".
     const exact = (field: keyof Book, value?: string) => {
         if (!value) return null;
         const v = foldText(value);
-        return (b: Book) => foldText(b[field]).includes(v);
+        return (b: Book) => foldText(b[field]) === v;
     };
     const tests = [
         f.status ? (b: Book) => b.status === f.status : null,
@@ -122,6 +128,45 @@ export function filterBooks(books: Book[], f: BookFilters): Book[] {
 }
 
 // ---------------------------------------------------------------------------
+// Sorting
+// ---------------------------------------------------------------------------
+
+export type BookSort = 'location' | 'name' | 'new';
+
+const collator = new Intl.Collator('ar', { numeric: true, sensitivity: 'base' });
+
+/** Natural compare after digit normalisation ("৯" < "10", "A2" < "A10"); blanks last. */
+export function compareText(a: unknown, b: unknown): number {
+    const x = foldText(a);
+    const y = foldText(b);
+    if (!x || !y) return x ? -1 : y ? 1 : 0;
+    return collator.compare(x, y);
+}
+
+/** Cabinet, then shelf, then title: the order the books stand on the shelves. */
+export function compareLocation(a: Book, b: Book): number {
+    return compareText(a.cabinet, b.cabinet) || compareText(a.shelf, b.shelf) || compareText(a.name, b.name);
+}
+
+export function sortBooks(books: readonly Book[], sort: BookSort): Book[] {
+    const list = [...books];
+    if (sort === 'location') return list.sort(compareLocation);
+    if (sort === 'name') return list.sort((a, b) => compareText(a.name, b.name) || compareText(a.author, b.author));
+    return list.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
+}
+
+/** Distinct cabinets, merging ones that differ only in digit script (৫০ / 50). */
+export function distinctCabinets(books: readonly Book[]): string[] {
+    const seen = new Map<string, string>();
+    for (const b of books) {
+        const c = b.cabinet.trim();
+        const k = foldText(c);
+        if (c && !seen.has(k)) seen.set(k, c);
+    }
+    return [...seen.values()].sort(compareText);
+}
+
+// ---------------------------------------------------------------------------
 // Missing-data report
 // ---------------------------------------------------------------------------
 
@@ -134,8 +179,7 @@ export const REPORT_FIELDS = {
     publisher: 'دار النشر',
     year: 'السنة',
     shelf: 'الطاق',
-    notes: 'ملاحظات',
-} as const;
+} as const; // notes are optional, so an empty note is not "missing"
 export type ReportField = keyof typeof REPORT_FIELDS;
 
 export function missingFields(book: Book): ReportField[] {
@@ -191,10 +235,21 @@ export function toCSV(rows: unknown[][]): string {
     return rows.map((r) => r.map(quote).join(',')).join('\n');
 }
 
-export function booksToRows(books: Book[]): unknown[][] {
+
+/** Exported files carry each book's id so a re-import updates exactly that book. */
+export const ID_HEADER = 'المعرف (لا تعدّله)';
+
+/**
+ * Full book rows for export, ready to edit and re-import.
+ * `extra` appends an info column (e.g. missing fields) that import ignores.
+ */
+export function booksToRows(books: readonly Book[], extra?: { header: string; value: (b: Book) => unknown }): unknown[][] {
     return [
-        CSV_HEADERS,
-        ...books.map((b) => [b.name, b.author, b.category, b.editor, b.parts, b.publisher, b.year, b.copies, b.status, b.cabinet, b.shelf, b.notes]),
+        [...CSV_HEADERS, ID_HEADER, ...(extra ? [extra.header] : [])],
+        ...books.map((b) => [
+            b.name, b.author, b.category, b.editor, b.parts, b.publisher, b.year, b.copies, b.status, b.cabinet, b.shelf, b.notes,
+            b.id, ...(extra ? [extra.value(b)] : []),
+        ]),
     ];
 }
 
@@ -218,10 +273,25 @@ const COMPARED: [keyof BookInput, string][] = [
     ['editor', 'المحقق'], ['category', 'القسم'], ['parts', 'الأجزاء'], ['year', 'السنة'],
     ['copies', 'النسخ'], ['cabinet', 'الصندوق'], ['shelf', 'الطاق'], ['notes', 'ملاحظات'],
 ];
+/** A row matched by id may also correct the title, author or publisher. */
+const COMPARED_BY_ID: [keyof BookInput, string][] = [
+    ['name', 'اسم الكتاب'], ['author', 'المؤلف'], ['publisher', 'دار النشر'], ...COMPARED,
+];
+const REQUIRED: (keyof BookInput)[] = ['name', 'author', 'category', 'cabinet'];
+
+function changesBetween(current: Book, next: BookInput, fields: [keyof BookInput, string][]): FieldChange[] {
+    return fields
+        .filter(([f]) => String(current[f] ?? '').trim() !== String(next[f] ?? '').trim())
+        .map(([f, label]) => ({ field: label, old: current[f], new: next[f] }));
+}
 
 /**
- * Turn CSV rows into add/update operations. A row matches an existing book by
- * name + author + publisher. Rows missing a required field are skipped.
+ * Turn CSV rows into add/update operations.
+ * - Rows carrying an id (files exported from the app) update exactly that book.
+ *   Any column may change; a missing column or a blank required cell keeps the
+ *   current value, a blank optional cell clears it.
+ * - Other rows match an existing book by title + author + publisher.
+ * - Rows without an id that miss a required field are skipped.
  */
 export function planImport(rows: string[][], existing: Book[]): ImportPlan {
     const plan: ImportPlan = { add: [], update: [], unchanged: 0, skipped: 0, categories: [], publishers: [] };
@@ -229,31 +299,56 @@ export function planImport(rows: string[][], existing: Book[]): ImportPlan {
     const header = rows[0].map((h) => clean(h));
     const index = new Map<keyof BookInput, number>();
     header.forEach((h, i) => { const f = HEADER_TO_FIELD[h]; if (f) index.set(f, i); });
+    const idCol = header.findIndex((h) => h === ID_HEADER || h === 'المعرف' || h.toLowerCase() === 'id');
 
+    const byId = new Map(existing.map((b) => [b.id, b]));
     const byKey = new Map<string, Book>();
     for (const b of existing) byKey.set(bookKey(b, true), b);
     const seenNew = new Set<string>();
+    const seenIds = new Set<string>();
     const cats = new Set<string>();
     const pubs = new Set<string>();
 
     for (const raw of rows.slice(1)) {
         const get = (f: keyof BookInput) => { const i = index.get(f); return i == null ? '' : raw[i] ?? ''; };
+        const id = idCol >= 0 ? clean(raw[idCol]) : '';
+        const target = id ? byId.get(id) : undefined;
+
+        if (target) {
+            if (seenIds.has(id)) { plan.unchanged++; continue; }
+            seenIds.add(id);
+            const pick = (f: keyof BookInput) => {
+                if (!index.has(f)) return target[f];
+                const v = clean(get(f));
+                return v === '' && REQUIRED.includes(f) ? target[f] : v;
+            };
+            const book = normalizeBookInput({
+                name: pick('name'), author: pick('author'), category: pick('category'), editor: pick('editor'),
+                parts: pick('parts'), publisher: pick('publisher'), year: pick('year'), copies: pick('copies'),
+                cabinet: pick('cabinet'), shelf: pick('shelf'), notes: pick('notes'),
+            });
+            cats.add(book.category);
+            if (book.publisher) pubs.add(book.publisher);
+            const changes = changesBetween(target, book, COMPARED_BY_ID);
+            if (changes.length) plan.update.push({ id: target.id, book, name: target.name, author: target.author, changes });
+            else plan.unchanged++;
+            continue;
+        }
+
         const book = normalizeBookInput({
             name: get('name'), author: get('author'), category: get('category'), editor: get('editor'),
             parts: get('parts'), publisher: get('publisher'), year: get('year'), copies: get('copies'),
             cabinet: get('cabinet'), shelf: get('shelf'), notes: get('notes'),
         });
         book.year = parseYear(get('year'));
-        if (!book.name || !book.author || !book.category || !book.cabinet) { plan.skipped++; continue; }
+        if (REQUIRED.some((f) => !book[f])) { plan.skipped++; continue; }
         cats.add(book.category);
         if (book.publisher) pubs.add(book.publisher);
 
         const key = bookKey(book, true);
         const match = byKey.get(key);
         if (match) {
-            const changes = COMPARED
-                .filter(([f]) => String(match[f] ?? '').trim() !== String(book[f] ?? '').trim())
-                .map(([f, label]) => ({ field: label, old: match[f], new: book[f] }));
+            const changes = changesBetween(match, book, COMPARED);
             if (changes.length) plan.update.push({ id: match.id, book, name: match.name, author: match.author, changes });
             else plan.unchanged++;
         } else if (!seenNew.has(key)) {
