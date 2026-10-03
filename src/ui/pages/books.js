@@ -120,7 +120,10 @@ export function mountBooks(host, app, params) {
         const grouped = state.sort === 'location';
         const counts = grouped ? cabinetCounts(rows) : null;
         const startsGroup = (b, i) => grouped && (i === 0 || foldText(p.slice[i - 1].cabinet) !== foldText(b.cabinet));
-        const groupLabel = (b) => html`${icon('archive-box')} ${isBlank(b.cabinet) ? 'بلا صندوق' : `الصندوق ${b.cabinet}`} <small>${fmtBooks(counts.get(foldText(b.cabinet)) || 0)}</small>`;
+        const groupLabel = (b) => {
+            const g = counts.get(foldText(b.cabinet)) || { count: 0, label: b.cabinet };
+            return html`${icon('archive-box')} ${isBlank(b.cabinet) ? 'بلا صندوق' : `الصندوق ${g.label}`} <small>${fmtBooks(g.count)}</small>`;
+        };
 
         const useTable = view === 'table' && matchMedia('(min-width: 900px)').matches;
         if (useTable) {
@@ -298,12 +301,17 @@ function openFilters(app, state, apply) {
     });
 }
 
-/** Books per cabinet, keyed by the digit-normalised cabinet name. */
+/**
+ * Books per cabinet, keyed by the digit-normalised name. The label is the
+ * first spelling met, so a cabinet keeps one name across pages (১ / ١ / 1).
+ */
 function cabinetCounts(books) {
     const m = new Map();
     for (const b of books) {
         const k = foldText(b.cabinet);
-        m.set(k, (m.get(k) || 0) + 1);
+        const g = m.get(k);
+        if (g) g.count++;
+        else m.set(k, { count: 1, label: b.cabinet.trim() });
     }
     return m;
 }
