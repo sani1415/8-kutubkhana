@@ -1,6 +1,8 @@
 /**
  * Build Android APK from project root.
- * Runs: build:android, cap sync, then Gradle assembleDebug.
+ * Runs: vite build, cap sync, then Gradle assembleDebug.
+ * The app shell loads the live site (capacitor.config.json server.url), so
+ * the APK only needs rebuilding when Android settings or the URL change.
  * Requires: Node.js, JDK (JAVA_HOME set), and Android SDK for Gradle.
  */
 const { execSync } = require('child_process');
@@ -23,7 +25,7 @@ if (!process.env.JAVA_HOME) {
 }
 
 console.log('1/3 Building web assets...');
-execSync('node scripts/build-android.js', { cwd: root, stdio: 'inherit' });
+execSync('npm run build', { cwd: root, stdio: 'inherit' });
 
 console.log('\n2/3 Syncing Capacitor (android)...');
 execSync('npx cap sync android', { cwd: root, stdio: 'inherit' });

@@ -1,12 +1,12 @@
 # First admin setup (مكتبة المصباح)
 
-After you run the schema and migrations, **the first user who signs up gets a profile with role `viewer`** (read-only). To give someone full access, you must promote them to **admin** once in the database.
+After you run the schema and migrations, **every new user gets a profile with role `pending`** and sees no data. Promote the first person to **admin** once in the database; after that, admins approve everyone else from the app.
 
 ## Steps
 
 1. **Run SQL in order** (in Supabase Dashboard → SQL Editor):
    - `schema.sql`
-   - `migrations/001_profiles_roles.sql` through `migrations/009_loan_copies_and_safe_delete.sql`
+   - `migrations/001_profiles_roles.sql` through `migrations/011_atomic_ops_and_scan_quota.sql`
    - `002` matters if profiles requests return HTTP 500
 
 2. **Let the first user sign up** through the app (or create them in Authentication → Users).
@@ -21,12 +21,13 @@ After you run the schema and migrations, **the first user who signs up gets a pr
 
    Replace `your-admin@example.com` with the real email of the person who should be admin.
 
-4. That user can then log in, open **Settings → Users**, and change other users’ roles (admin / librarian / viewer) from the UI.
+4. That user can then log in, open **الإعدادات → المستخدمون والصلاحيات**, and approve other users (admin / librarian / viewer). Pending users are listed first.
 
 ## Roles
 
 | Role       | Access |
 |-----------|--------|
+| **pending**  | No access until an admin approves. |
 | **viewer**   | Read-only (books, members, loans, diary, categories, publishers). |
 | **librarian**| Create, edit, delete library data (same tables). Cannot manage user roles. |
 | **admin**   | Full access, including user/role management and dangerous actions. |
@@ -50,5 +51,5 @@ The Supabase CLI cannot run arbitrary SQL on the remote database (it needs Docke
 
 ## Troubleshooting
 
-- **No rows returned after migration:** Ensure the user is logged in and has a row in `ktb_profiles` with role `admin`, `librarian`, or `viewer`. If the profile was created with role `viewer`, promote them with the `UPDATE` above.
+- **No rows returned after migration:** Ensure the user is logged in and has a row in `ktb_profiles` with role `admin`, `librarian`, or `viewer`. If the profile is `pending`, approve it in the app or with the `UPDATE` above.
 - **500 on profiles:** Ensure `002_profiles_rls_fix.sql` has been run so profile policies use `is_profiles_admin()` and avoid RLS recursion.

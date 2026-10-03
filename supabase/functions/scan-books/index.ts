@@ -14,6 +14,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 const MAX_RETRIES = 3;
+// Client downscales to 1600px JPEG (~300-600 KB). 6 MB of base64 leaves room
+// for un-compressible inputs while rejecting abuse.
+const MAX_BASE64_LENGTH = 6_000_000;
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+// Images per user per 24h (enforced in Postgres by ktb_claim_scan).
+const DAILY_SCAN_LIMIT = Number(Deno.env.get('SCAN_DAILY_LIMIT') ?? '100');
 
 const PROMPT = `You are a library data extraction assistant. Analyze this image of a book or books and extract the following information for EACH book visible in the image.
 
@@ -48,16 +54,17 @@ function json(data: unknown, status = 200): Response {
     });
 }
 
-async function getUserRole(req: Request): Promise<{ user: any; role: string } | null> {
-    const authHeader = req.headers.get('Authorization') || '';
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) return null;
-
-    const supabase = createClient(
+function userClient(token: string) {
+    return createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_ANON_KEY') ?? '',
         { global: { headers: { Authorization: `Bearer ${token}` } } }
     );
+}
+
+async function getUserRole(token: string): Promise<{ user: any; role: string } | null> {
+    if (!token) return null;
+    const supabase = userClient(token);
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData?.user) return null;
@@ -80,10 +87,10 @@ async function callGemini(base64Data: string, mimeType: string): Promise<unknown
     for (const model of MODELS) {
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
                 const response = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
                     body: JSON.stringify({
                         contents: [{
                             parts: [
@@ -145,7 +152,8 @@ function sanitizeBooks(books: unknown): unknown[] {
 Deno.serve(async (req) => {
     try {
         // 1) Authenticate the caller
-        const auth = await getUserRole(req);
+        const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+        const auth = await getUserRole(token);
         if (!auth) {
             return json({ error: 'غير مصرح: يتطلب تسجيل الدخول.' }, 401);
         }
@@ -159,6 +167,19 @@ Deno.serve(async (req) => {
         const mimeType = typeof body?.image?.mimeType === 'string' ? body.image.mimeType : 'image/jpeg';
         if (!base64Data) {
             return json({ error: 'صورة غير صالحة.' }, 400);
+        }
+        if (base64Data.length > MAX_BASE64_LENGTH) {
+            return json({ error: 'الصورة كبيرة جداً.' }, 413);
+        }
+        if (!ALLOWED_MIME.includes(mimeType)) {
+            return json({ error: 'نوع الصورة غير مدعوم.' }, 415);
+        }
+
+        // Daily quota (atomic, per user)
+        const { error: quotaError } = await userClient(token).rpc('ktb_claim_scan', { p_daily_limit: DAILY_SCAN_LIMIT });
+        if (quotaError) {
+            const limited = quotaError.code === 'P0001';
+            return json({ error: limited ? 'تم بلوغ الحد اليومي للمسح. حاول غداً.' : quotaError.message }, limited ? 429 : 403);
         }
 
         // 3) Extract via Gemini (key stays server-side)

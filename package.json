@@ -1,23 +1,32 @@
 {
   "name": "kutubkhana",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "مكتبة المصباح - نظام إدارة المكتبة",
   "scripts": {
-    "serve": "npx serve .",
-    "dev": "npx serve .",
-    "build": "node scripts/build-config.js",
-    "build:android": "node scripts/build-android.js",
-    "cap:sync": "npx cap sync android",
+    "dev": "vite",
+    "dev:demo": "vite --mode demo",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "check": "npm run typecheck && npm run test && npm run build",
+    "cap:sync": "npm run build && npx cap sync android",
     "cap:open": "npx cap open android",
-    "android": "npm run build:android && npm run cap:sync && npm run cap:open",
+    "android": "npm run cap:sync && npm run cap:open",
     "apk": "node scripts/build-apk.js"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
-    "@capacitor/core": "^6.0.0"
+    "@capacitor/core": "^6.0.0",
+    "@phosphor-icons/web": "^2.1.2",
+    "@supabase/supabase-js": "^2.117.2",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.0.0"
+    "@capacitor/cli": "^6.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
   }
 }

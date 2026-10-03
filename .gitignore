@@ -1,28 +1,35 @@
-# Supabase credentials (never commit)
-js/config.js
+# Secrets / local config (never commit)
 .env
 .env.local
 .env.*.local
+js/config.js
+
+# Build output
+dist/
+www/
+.vercel
+
+# Private library data — kept on this machine only, never pushed or deployed
+Kutubkhana-pics/
+Combined.xlsx
+scripts/_*.json
+scripts/_*.txt
+supabase/profiles_dump.sql
 
 # Supabase CLI / local
 supabase/.temp/
 supabase/.branches/
+
+# Tooling
+node_modules/
+.playwright-mcp/
+.cache/
+*.log
+*.tmp
+*.temp
 
 # OS
 .DS_Store
 Thumbs.db
 *.swp
 *~
-
-# Node
-node_modules/
-
-# Temp / build artifacts
-*.tmp
-*.temp
-*.log
-.cache/
-
-# Capacitor build
-www/
-.vercel

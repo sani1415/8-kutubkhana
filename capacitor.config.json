@@ -1,18 +1,17 @@
 {
   "appId": "com.misbah.kutubkhana",
   "appName": "مكتبة المصباح",
-  "webDir": "www",
+  "webDir": "dist",
   "server": {
-    "androidScheme": "https"
+    "url": "https://kutubkhana.idarah786.com",
+    "androidScheme": "https",
+    "errorPath": "index.html"
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 2000,
-      "backgroundColor": "#1a5f4a",
+      "launchShowDuration": 800,
+      "backgroundColor": "#F7F6F1",
       "showSpinner": false
     }
-  },
-  "android": {
-    "allowMixedContent": true
   }
 }
