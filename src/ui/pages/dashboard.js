@@ -16,6 +16,7 @@ function greeting() {
 
 export function mountDashboard(host, app) {
     const { repo } = app;
+    let tab = 0; // phones: which panel (categories / loans / recent) is in view
 
     function render() {
         const s = repo.stats();
@@ -64,6 +65,17 @@ export function mountDashboard(host, app) {
                     </li>`)}</ul>` : emptyState({ title: 'المكتبة فارغة' })}
             </article>`;
 
+        const catsCard = html`
+            <article class="card panel">
+                <header class="panel__head"><h2>${icon('stack', 'duotone')} أكبر الأقسام</h2><a href="#/categories">${fmtNumber(cats.length)} قسماً ${icon('caret-left')}</a></header>
+                ${cats.length ? html`<ul class="bars">${cats.slice(0, TOP_CATEGORIES).map(([name, n], i) => html`
+                    <li><button class="bar" data-action="cat:open" data-cat="${name}" style="--w:${Math.max(4, Math.round((n / maxCat) * 100))}%;--c:${spineColor(name)};--i:${i}" title="${name}">
+                        <span class="bar__name">${name}</span>
+                        <span class="bar__track"><span class="bar__fill"></span></span>
+                        <span class="bar__num">${fmtNumber(n)}</span>
+                    </button></li>`)}</ul>` : emptyState({ title: 'لا توجد أقسام' })}
+            </article>`;
+
         setHtml(host, html`
             <header class="hello">
                 <div>
@@ -78,7 +90,7 @@ export function mountDashboard(host, app) {
                 </div>` : ''}
             </header>
 
-            <section class="kpis slider" aria-label="أرقام المكتبة">
+            <section class="kpis" aria-label="أرقام المكتبة">
                 ${kpis.map((k, i) => html`
                     <a class="kpi ${k.tone ? `kpi--${k.tone}` : ''}" href="${k.href}" style="--i:${i}">
                         <span class="kpi__icon">${icon(k.icon, 'duotone')}</span>
@@ -87,28 +99,43 @@ export function mountDashboard(host, app) {
                     </a>`)}
                 <a class="kpi kpi--ring" href="#/reports" style="--i:5">
                     <span class="mini-ring" style="--p:${health}"><span>${fmtNumber(health)}%</span></span>
-                    <span class="kpi__label">اكتمال البيانات${incomplete ? html` <b>${fmtNumber(incomplete)} ناقص</b>` : ''}</span>
+                    <span class="kpi__label">مكتملة${incomplete ? html` <b>${fmtNumber(incomplete)} ناقص</b>` : ''}</span>
                 </a>
             </section>
 
-            <section class="dash-grid">
-                <article class="card panel">
-                    <header class="panel__head"><h2>${icon('stack', 'duotone')} أكبر الأقسام</h2><a href="#/categories">${fmtNumber(cats.length)} قسماً ${icon('caret-left')}</a></header>
-                    ${cats.length ? html`<ul class="bars">${cats.slice(0, TOP_CATEGORIES).map(([name, n], i) => html`
-                        <li><button class="bar" data-action="cat:open" data-cat="${name}" style="--w:${Math.max(4, Math.round((n / maxCat) * 100))}%;--c:${spineColor(name)};--i:${i}" title="${name}">
-                            <span class="bar__name">${name}</span>
-                            <span class="bar__track"><span class="bar__fill"></span></span>
-                            <span class="bar__num">${fmtNumber(n)}</span>
-                        </button></li>`)}</ul>` : emptyState({ title: 'لا توجد أقسام' })}
-                </article>
-                <div class="slider slider--panels" aria-label="الإعارات والكتب الجديدة">
-                    ${loansCard}
-                    ${recentCard}
-                </div>
+            <nav class="dash-tabs" role="tablist" aria-label="أقسام اللوحة">
+                ${[['الأقسام', cats.length], ['المعارة', active.length], ['الجديدة', recent.length]].map(([label, n], i) => html`
+                    <button role="tab" data-action="dash:tab" data-i="${i}" class="${tab === i ? 'is-on' : ''}">${label}${n ? html` <small>${fmtNumber(n)}</small>` : ''}</button>`)}
+            </nav>
+            <section class="dash-panels" id="dash-panels">
+                ${catsCard}
+                ${loansCard}
+                ${recentCard}
             </section>`);
+
+        const panels = host.querySelector('#dash-panels');
+        if (tab) panels.scrollTo({ left: -tab * panelStep(panels), behavior: 'instant' });
+        const sync = () => showTab(Math.round(Math.abs(panels.scrollLeft) / panelStep(panels)));
+        panels.addEventListener('scroll', sync, { passive: true });
+        panels.addEventListener('scrollend', sync);
+    }
+
+    // Distance between two panels (width + gap). RTL scrolls with negative scrollLeft.
+    const panelStep = (panels) => Math.max(1, panels.clientWidth + (parseFloat(getComputedStyle(panels).columnGap) || 0));
+
+    function showTab(i) {
+        if (i === tab) return;
+        tab = i;
+        host.querySelectorAll('[data-action="dash:tab"]').forEach((b) => b.classList.toggle('is-on', Number(b.dataset.i) === i));
     }
 
     const off = delegate(host, {
+        'dash:tab': (el) => {
+            const panels = host.querySelector('#dash-panels');
+            const i = Number(el.dataset.i);
+            showTab(i);
+            panels.scrollTo({ left: -i * panelStep(panels), behavior: 'smooth' });
+        },
         'cat:open': (el) => app.go(`/books?category=${encodeURIComponent(el.dataset.cat)}`),
         'loan:return': (el) => withBusy(el, async () => {
             await repo.returnLoan(el.dataset.id);

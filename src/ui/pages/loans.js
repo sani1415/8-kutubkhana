@@ -70,13 +70,13 @@ export function mountLoans(host, app, params) {
                 <span class="loan__avatar">${(m?.name || '؟').trim()[0]}</span>
                 <div class="loan__main">
                     <strong>${b?.name || 'كتاب محذوف'}</strong>
-                    <span>${m?.name || 'عضو محذوف'}${m?.phone ? html` · <a href="tel:${m.phone}" dir="ltr">${m.phone}</a>` : ''}</span>
+                    <span>${m?.name || 'عضو محذوف'}${m?.phone ? html`<span class="loan__phone"> · <a href="tel:${m.phone}" dir="ltr">${m.phone}</a></span>` : ''}</span>
                     <small>${fmtDate(l.loanDate)}${active ? html` · <b class="${late ? 'text-late' : ''}">${fmtRelative(l.loanDate)}</b>` : ` ← أُرجع ${fmtDate(l.returnDate)}`}</small>
                 </div>
                 <div class="loan__actions">
                     ${active && app.canEdit ? html`<button class="btn btn--soft btn--sm" data-action="loan:return" data-id="${l.id}">${icon('arrow-u-down-left')} إرجاع</button>` : ''}
                     ${!active ? html`<span class="chip chip--quiet">مُرجع</span>` : ''}
-                    ${app.canEdit ? html`<button class="icon-btn icon-btn--sm" data-action="loan:delete" data-id="${l.id}" aria-label="حذف السجل">${icon('trash')}</button>` : ''}
+                    ${app.canEdit ? html`<button class="icon-btn icon-btn--sm loan__delete" data-action="loan:delete" data-id="${l.id}" aria-label="حذف السجل">${icon('trash')}</button>` : ''}
                 </div>
             </li>`;
         })}</ul>`);
