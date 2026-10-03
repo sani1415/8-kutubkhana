@@ -34,7 +34,7 @@ export function openSheet({ title, body, size = 'md', onMount, actions = {} }) {
             dlg.classList.add('is-closing');
             const done = () => dlg.close();
             if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
-            else setTimeout(done, 180);
+            else setTimeout(done, 250);
         };
         dlg.addEventListener('close', () => {
             stack.splice(stack.indexOf(dlg), 1);

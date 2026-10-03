@@ -1,6 +1,6 @@
 import { html, setHtml, delegate, $, debounce, fmtNumber, fmtDate, formValues } from '../dom.js';
 import { icon } from '../icons.js';
-import { emptyState, pageHeader, mountPicker, field } from '../components.js';
+import { emptyState, pageHeader, mountPicker, field, setupDropdown } from '../components.js';
 import { openSheet, confirmAction, toast, withBusy } from '../overlay.js';
 import { foldText } from '../../data/rules.ts';
 import { openBookDetail } from './books.js';
@@ -20,14 +20,19 @@ export function mountArchive(host, app, params) {
         })}
         <div class="toolbar">
             <label class="search">${icon('magnifying-glass')}<input type="search" id="doc-q" placeholder="ابحث في العناوين والأوصاف"></label>
+            <button type="button" class="btn btn--ghost btn--sm filter-btn phone-inline" id="doc-filter">${icon('funnel-simple')} <span id="doc-cat-label">الكل</span></button>
         </div>
-        <div class="chips-scroll" id="doc-cats"></div>
+        <div class="dropdown" id="doc-dd" aria-hidden="true"><div class="dropdown__inner"><div class="dropdown__body"><div class="choice-list" id="doc-choices"></div></div></div></div>
+        <div class="chips-scroll hide-phone" id="doc-cats"></div>
         <section id="doc-list"></section>`);
 
     function render() {
         setHtml($('#doc-cats', host), html`
             <button class="pill ${!state.cat ? 'is-on' : ''}" data-action="doc:cat" data-value="">الكل</button>
             ${CATS.map((c) => html`<button class="pill ${state.cat === c ? 'is-on' : ''}" data-action="doc:cat" data-value="${c}">${c}</button>`)}`);
+        setHtml($('#doc-choices', host), [['', 'الكل'], ...CATS.map((c) => [c, c])].map(([v, l]) => html`
+            <button type="button" data-action="doc:cat" data-value="${v}" class="${state.cat === v ? 'is-on' : ''}">${l}</button>`));
+        $('#doc-cat-label', host).textContent = state.cat || 'الكل';
         const fq = foldText(state.q).trim();
         const docs = repo.documents.filter((d) => (!state.cat || d.category === state.cat) && (!fq || foldText(`${d.title} ${d.description}`).includes(fq)));
         setHtml($('#doc-list', host), docs.length
@@ -46,10 +51,11 @@ export function mountArchive(host, app, params) {
             : emptyState({ iconName: 'archive', title: 'لا توجد وثائق', text: 'احفظ صور الوثائق القديمة والخطابات هنا لتكون محفوظة وقابلة للبحث.' }));
     }
 
+    const toggleDropdown = setupDropdown($('#doc-filter', host), $('#doc-dd', host));
     $('#doc-q', host).addEventListener('input', debounce((e) => { state.q = e.target.value; render(); }));
 
     const off = delegate(host, {
-        'doc:cat': (el) => { state.cat = el.dataset.value; render(); },
+        'doc:cat': (el) => { state.cat = el.dataset.value; toggleDropdown(false); render(); },
         'doc:new': () => openDocForm(app),
         'doc:view': (el) => openDocView(app, el.dataset.id),
     });

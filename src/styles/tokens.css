@@ -79,6 +79,7 @@
 
     --rail-w: 228px;
     --tabbar-h: 60px;
+    --topbar-h: calc(var(--safe-t) + 46px);
     --safe-b: env(safe-area-inset-bottom, 0px);
     --safe-t: env(safe-area-inset-top, 0px);
 }

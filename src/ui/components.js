@@ -3,6 +3,21 @@ import { html, raw, fmtNumber, escapeHtml, setHtml, debounce } from './dom.js';
 import { icon } from './icons.js';
 import { foldText, isBlank } from '../data/rules.ts';
 
+/**
+ * A panel that slides down under its toolbar. Returns toggle(force?).
+ * Used on phones in place of rows of tabs/chips above a list.
+ */
+export function setupDropdown(button, panel) {
+    const toggle = (force) => {
+        const open = force ?? !panel.classList.contains('is-open');
+        panel.classList.toggle('is-open', open);
+        panel.setAttribute('aria-hidden', String(!open));
+        button.classList.toggle('is-on', open);
+    };
+    button.addEventListener('click', () => toggle());
+    return toggle;
+}
+
 export function pageHeader({ title, subtitle, actions }) {
     return html`
         <header class="page-head">
@@ -55,13 +70,13 @@ export function spineColor(category) {
 }
 
 export function bookCard(repo, book, { canEdit, index } = {}) {
-    const meta = [book.author, book.publisher].filter(Boolean).join(' · ');
+    const available = repo.availability(book).left > 0;
     return html`
-        <article class="book-card" data-action="book:open" data-id="${book.id}" tabindex="0" style="--spine:${spineColor(book.category)}${index != null ? `;--i:${Math.min(index, 12)}` : ''}">
+        <article class="book-card" data-action="book:open" data-id="${book.id}" tabindex="0" aria-expanded="false" style="--spine:${spineColor(book.category)}${index != null ? `;--i:${Math.min(index, 12)}` : ''}">
             <div class="book-card__spine" aria-hidden="true"></div>
             <div class="book-card__main">
                 <h3 class="book-card__title">${book.name}</h3>
-                <p class="book-card__meta">${meta}</p>
+                <p class="book-card__meta">${book.author}${book.publisher ? html`<span class="book-card__pub"> · ${book.publisher}</span>` : ''}</p>
                 <div class="book-card__tags">
                     <span class="tag">${book.category}</span>
                     ${book.parts > 1 ? html`<span class="tag tag--quiet">${fmtNumber(book.parts)} أجزاء</span>` : ''}
@@ -70,6 +85,7 @@ export function bookCard(repo, book, { canEdit, index } = {}) {
             </div>
             <div class="book-card__side">
                 ${statusChip(repo, book)}
+                ${available ? html`<span class="avail-tick" title="متاح" aria-label="متاح">${icon('check-circle', 'fill')}</span>` : ''}
                 ${canEdit ? html`<button type="button" class="icon-btn icon-btn--sm" data-action="book:edit" data-id="${book.id}" aria-label="تعديل">${icon('pencil-simple')}</button>` : ''}
             </div>
         </article>`;
@@ -175,10 +191,12 @@ export function mountPicker(host, { name, items, placeholder, selectedId = '', d
         input.blur();
     });
     host.querySelector('.picker__clear')?.addEventListener('click', () => {
+        const had = hidden.value;
         hidden.value = '';
         input.value = '';
         render();
-        input.focus();
+        if (had) host.dispatchEvent(new CustomEvent('pick', { detail: null }));
+        else input.focus();
     });
     return { get value() { return hidden.value; } };
 }

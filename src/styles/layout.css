@@ -32,8 +32,9 @@
     z-index: 20;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: calc(var(--safe-t) + 6px) var(--s-3) 6px;
+    justify-content: center;
+    height: var(--topbar-h);
+    padding: var(--safe-t) var(--s-3) 0;
     background: color-mix(in srgb, var(--bg) 82%, transparent);
     backdrop-filter: saturate(1.4) blur(14px);
     -webkit-backdrop-filter: saturate(1.4) blur(14px);
@@ -63,7 +64,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
+    gap: 1px;
     height: 100%;
     border: 0;
     border-radius: var(--r-pill);
@@ -71,10 +72,12 @@
     color: var(--ink-3);
     font-size: 11px;
     font-weight: 500;
+    line-height: 1.2;
     transition: color var(--t-fast), background var(--t-fast), transform var(--t-fast) var(--ease-spring);
 }
 .tab:active { transform: scale(0.92); }
-.tab .nav__icon { font-size: 21px; }
+.tab .nav__icon { display: block; height: 22px; font-size: 22px; line-height: 1; }
+.tab .nav__icon i { display: block; line-height: 1; }
 .tab.is-active { color: var(--accent-deep); }
 .tab.is-active .nav__icon .ph { display: none; }
 .tab:not(.is-active) .nav__icon .ph-fill { display: none; }
@@ -250,3 +253,9 @@ body[data-screen='login'] { background-color: var(--bg); }
     animation-delay: 120ms;
 }
 .auth__card--center { text-align: center; justify-items: center; }
+
+/* app bar: logo · title · search, hugging each other in the middle */
+.topbar__center { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.topbar__logo { display: inline-flex; font-size: 22px; color: var(--accent-deep); }
+#topbar-title { font-family: var(--font-display); font-size: 1.12rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar .icon-btn--sm { width: 30px; height: 30px; font-size: 19px; color: var(--ink-2); }

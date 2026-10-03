@@ -1,6 +1,8 @@
 import { html, setHtml, delegate, $, $$, debounce, fmtNumber, fmtDate, fmtRelative, daysSince, formValues, todayIso } from '../dom.js';
 import { icon } from '../icons.js';
-import { emptyState, mountPicker, pageHeader, pager, paginate } from '../components.js';
+import { emptyState, mountPicker, pageHeader, pager, paginate, setupDropdown } from '../components.js';
+
+const TABS = [['active', 'معارة الآن'], ['late', 'متأخرة'], ['returned', 'مُرجعة'], ['all', 'الكل']];
 import { openSheet, confirmAction, toast, withBusy } from '../overlay.js';
 import { foldText } from '../../data/rules.ts';
 
@@ -19,12 +21,17 @@ export function mountLoans(host, app, params) {
             actions: app.canEdit ? html`<button class="btn btn--primary" data-action="loan:new">${icon('hand-arrow-up')} إعارة جديدة</button>` : '',
         })}
         <div class="toolbar">
-            <div class="segmented" role="tablist">
-                ${[['active', 'معارة الآن'], ['late', 'متأخرة'], ['returned', 'مُرجعة'], ['all', 'الكل']].map(([v, l]) => html`
+            <div class="segmented hide-phone" role="tablist">
+                ${TABS.map(([v, l]) => html`
                     <button role="tab" data-action="loans:tab" data-value="${v}" class="${state.tab === v ? 'is-on' : ''}">${l} <small data-count="${v}"></small></button>`)}
             </div>
             <label class="search">${icon('magnifying-glass')}<input type="search" id="loans-q" placeholder="ابحث باسم الكتاب أو العضو" value="${state.q}"></label>
+            <button type="button" class="btn btn--ghost btn--sm filter-btn phone-inline" id="loans-filter">${icon('funnel-simple')} <span id="loans-tab-label">${TABS.find(([v]) => v === state.tab)[1]}</span></button>
         </div>
+        <div class="dropdown" id="loans-dd" aria-hidden="true"><div class="dropdown__inner"><div class="dropdown__body">
+            <div class="choice-list">${TABS.map(([v, l]) => html`
+                <button type="button" data-action="loans:tab" data-value="${v}" class="${state.tab === v ? 'is-on' : ''}">${l}<small data-count="${v}"></small></button>`)}</div>
+        </div></div></div>
         <section id="loans-list"></section>
         <div id="loans-pager"></div>`);
 
@@ -83,12 +90,15 @@ export function mountLoans(host, app, params) {
         setHtml($('#loans-pager', host), pager({ ...p, prefix: 'loans' }));
     }
 
+    const toggleDropdown = setupDropdown($('#loans-filter', host), $('#loans-dd', host));
     $('#loans-q', host).addEventListener('input', debounce((e) => { state.q = e.target.value; state.page = 1; render(); }));
 
     const off = delegate(host, {
         'loans:tab': (el) => {
             state.tab = el.dataset.value; state.page = 1;
-            $$('[data-action="loans:tab"]', host).forEach((b) => b.classList.toggle('is-on', b === el));
+            $$('[data-action="loans:tab"]', host).forEach((b) => b.classList.toggle('is-on', b.dataset.value === state.tab));
+            $('#loans-tab-label', host).textContent = TABS.find(([v]) => v === state.tab)[1];
+            toggleDropdown(false);
             render();
         },
         'loans:prev': () => { state.page--; render(); },

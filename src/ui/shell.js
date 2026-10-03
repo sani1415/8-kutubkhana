@@ -150,8 +150,11 @@ export function startShell(root, repo) {
 
                 <div class="main">
                     <header class="topbar">
-                        <div class="brand brand--sm">${icon('book-open-text', 'duotone')}<strong id="topbar-title">مكتبة المصباح</strong></div>
-                        <button class="icon-btn" data-action="shell:search" aria-label="بحث" id="topbar-search">${icon('magnifying-glass')}</button>
+                        <div class="topbar__center">
+                            <span class="topbar__logo">${icon('book-open-text', 'duotone')}</span>
+                            <strong id="topbar-title">مكتبة المصباح</strong>
+                            <button class="icon-btn icon-btn--sm" data-action="shell:search" aria-label="بحث" id="topbar-search">${icon('magnifying-glass')}</button>
+                        </div>
                     </header>
                     <main id="page" class="page" tabindex="-1"></main>
                 </div>
@@ -243,12 +246,12 @@ export function startShell(root, repo) {
         const host = prev.cloneNode(false);
         prev.replaceWith(host);
         host.dataset.page = page.id;
+        document.body.dataset.page = page.id;
         document.title = `${page.title} · مكتبة المصباح`;
         // Phones: the app bar carries the page name (the in-page title is hidden there).
         const isHome = page.id === 'dashboard';
         $('#topbar-title', root).textContent = isHome ? 'مكتبة المصباح' : page.title;
         $('.topbar', root).classList.toggle('topbar--page', !isHome);
-        $('#topbar-search', root).hidden = page.id === 'books';
         const instance = page.mount(host, app, params);
         current = { id: page.id, instance };
         host.classList.remove('page--enter');

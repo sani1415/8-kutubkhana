@@ -62,6 +62,7 @@ export function mountBooks(host, app, params) {
                 <button data-action="books:view" data-value="table" class="${view === 'table' ? 'is-on' : ''}" aria-label="جدول">${icon('rows')}</button>
             </div>
         </div>
+        <div class="dropdown" id="filter-panel" aria-hidden="true"><div class="dropdown__inner"></div></div>
         <div class="chips-scroll" id="cat-chips"></div>
         <div id="active-filters" class="active-filters"></div>
         <div id="bulk" class="bulk" hidden></div>
@@ -93,11 +94,13 @@ export function mountBooks(host, app, params) {
     }
 
     function renderActiveFilters() {
-        const extra = [['author', 'المؤلف'], ['publisher', 'الناشر'], ['cabinet', 'الصندوق']].filter(([k]) => state[k]);
+        // Category and status also have chips/tabs on wide screens; phones only see them here.
+        const extra = [['status', 'الحالة', true], ['category', 'القسم', true], ['author', 'المؤلف'], ['publisher', 'الناشر'], ['cabinet', 'الصندوق']]
+            .filter(([k]) => state[k]);
         $('#filter-badge', host).hidden = !extra.length;
         $('#filter-badge', host).textContent = extra.length;
-        setHtml($('#active-filters', host), extra.map(([k, l]) => html`
-            <button class="pill pill--filter" data-action="books:clear" data-key="${k}">${l}: ${state[k]} ${icon('x')}</button>`));
+        setHtml($('#active-filters', host), extra.map(([k, l, phoneOnly]) => html`
+            <button class="pill pill--filter ${phoneOnly ? 'pill--phone' : ''}" data-action="books:clear" data-key="${k}">${l}: ${state[k]} ${icon('x')}</button>`));
     }
 
     function renderList() {
@@ -188,7 +191,7 @@ export function mountBooks(host, app, params) {
             go({ status: el.dataset.value });
         },
         'books:cat': (el) => go({ category: el.dataset.value }),
-        'books:clear': (el) => go({ [el.dataset.key]: '' }),
+        'books:clear': (el) => { go({ [el.dataset.key]: '' }); syncFilterPanel(); },
         'books:reset': () => {
             qInput.value = '';
             $$('[data-action="books:status"]', host).forEach((b) => b.classList.toggle('is-on', b.dataset.value === ''));
@@ -202,11 +205,20 @@ export function mountBooks(host, app, params) {
         },
         'books:prev': () => { state.page--; renderList(); host.scrollIntoView({ behavior: 'smooth' }); },
         'books:next': () => { state.page++; renderList(); host.scrollIntoView({ behavior: 'smooth' }); },
-        'books:filters': () => openFilters(app, state, () => renderAll()),
+        'books:filters': () => toggleFilterPanel(),
+        'filter:status': (el) => { go({ status: el.dataset.value }); syncFilterPanel(); },
+        'filter:clear': () => {
+            qInput.value = '';
+            go({ q: '', status: '', category: '', author: '', publisher: '', cabinet: '' });
+            buildFilterPanel();
+        },
+        'filter:close': () => toggleFilterPanel(false),
+        'drawer:edit': (el) => openBookEditor(app, el.dataset.id),
+        'drawer:more': (el) => openBookDetail(app, el.dataset.id),
         'books:menu': () => openBooksMenu(app, host),
         'book:open': (el, ev) => {
             if (ev.target.closest('input,button:not([data-action="book:open"])')) return;
-            openBookDetail(app, el.dataset.id);
+            openBook(el);
         },
         'book:edit': (el, ev) => { ev.stopPropagation(); openBookEditor(app, el.dataset.id); },
         'books:check': (el, ev) => {
@@ -238,9 +250,100 @@ export function mountBooks(host, app, params) {
     host.addEventListener('keydown', (e) => {
         if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.book-card')) {
             e.preventDefault();
-            openBookDetail(app, e.target.dataset.id);
+            openBook(e.target);
         }
     });
+
+    // ------------------------------------------------------------ phone drawer
+    const isPhone = () => matchMedia('(max-width: 759px)').matches;
+
+    /** Phones: the row opens a drawer under itself. Wide screens: the detail sheet. */
+    function openBook(card) {
+        if (!isPhone()) return openBookDetail(app, card.dataset.id);
+        const open = listEl.querySelector('.book-drawer.is-open');
+        const same = open && open.previousElementSibling === card;
+        if (open) closeDrawer(open);
+        if (same) return;
+        const b = repo.book(card.dataset.id);
+        if (!b) return;
+        const drawer = document.createElement('div');
+        drawer.className = 'book-drawer';
+        setHtml(drawer, drawerContent(app, b));
+        card.after(drawer);
+        card.classList.add('is-open');
+        card.setAttribute('aria-expanded', 'true');
+        void drawer.offsetHeight; // commit the closed state so the opening transition runs
+        drawer.classList.add('is-open');
+    }
+
+    function closeDrawer(drawer) {
+        const card = drawer.previousElementSibling;
+        card?.classList.remove('is-open');
+        card?.setAttribute('aria-expanded', 'false');
+        drawer.classList.remove('is-open');
+        const remove = () => drawer.remove();
+        drawer.addEventListener('transitionend', remove, { once: true });
+        setTimeout(remove, 450);
+    }
+
+    // ------------------------------------------------------- filter dropdown
+    const panel = $('#filter-panel', host);
+    const panelInner = $('.dropdown__inner', panel);
+
+    function toggleFilterPanel(force) {
+        const open = force ?? !panel.classList.contains('is-open');
+        if (open) buildFilterPanel();
+        panel.classList.toggle('is-open', open);
+        panel.setAttribute('aria-hidden', String(!open));
+        $('[data-action="books:filters"]', host).classList.toggle('is-on', open);
+    }
+
+    function buildFilterPanel() {
+        const cats = [...repo.countBy('category')].sort((a, b) => b[1] - a[1]).map(([c, n]) => ({ id: c, label: c, sub: `${fmtNumber(n)} كتاب` }));
+        const authors = repo.authors().map((a) => ({ id: a.name, label: a.name, sub: `${fmtNumber(a.count)} كتاب` }));
+        const pubs = [...repo.countBy('publisher')].map(([p, n]) => ({ id: p, label: p, sub: `${fmtNumber(n)} كتاب` }));
+        const cabinets = distinctCabinets(repo.books);
+        const chosenCabinet = cabinets.find((c) => foldText(c) === foldText(state.cabinet)) || '';
+        setHtml(panelInner, html`
+            <div class="dropdown__body">
+                <div class="dd-row phone-only">
+                    <div class="segmented segmented--full" role="tablist" aria-label="الحالة">
+                        ${[['', 'الكل'], ['متاح', 'متاح'], ['معار', 'معار']].map(([v, l]) => html`
+                            <button type="button" data-action="filter:status" data-value="${v}" class="${state.status === v ? 'is-on' : ''}">${l}</button>`)}
+                    </div>
+                </div>
+                <label class="field phone-only"><span class="field__label">الترتيب</span>
+                    <select class="input input--sm" data-filter="sort">${SORTS.map(([v, l]) => html`<option value="${v}" ${state.sort === v ? 'selected' : ''}>${l}</option>`)}</select>
+                </label>
+                <div class="field"><span class="field__label">القسم</span><div data-picker="category"></div></div>
+                <div class="field"><span class="field__label">المؤلف</span><div data-picker="author"></div></div>
+                <div class="field"><span class="field__label">دار النشر</span><div data-picker="publisher"></div></div>
+                <label class="field"><span class="field__label">الصندوق</span>
+                    <select class="input input--sm" data-filter="cabinet"><option value="">الكل</option>${cabinets.map((c) => html`<option ${chosenCabinet === c ? 'selected' : ''}>${c}</option>`)}</select>
+                </label>
+                <div class="dd-actions">
+                    <button type="button" class="btn btn--ghost btn--sm" data-action="filter:clear">${icon('arrow-counter-clockwise')} مسح الكل</button>
+                    <button type="button" class="btn btn--soft btn--sm" data-action="filter:close">${icon('check')} تم</button>
+                </div>
+            </div>`);
+        const pickers = { category: cats, author: authors, publisher: pubs };
+        Object.entries(pickers).forEach(([key, items]) => {
+            const box = $(`[data-picker="${key}"]`, panelInner);
+            mountPicker(box, { name: key, items, placeholder: key === 'category' ? `ابحث في ${fmtNumber(items.length)} قسماً…` : 'الكل', selectedId: state[key], allowClear: true });
+            box.addEventListener('pick', (e) => go({ [key]: e.detail?.id || '' }));
+        });
+        $('[data-filter="sort"]', panelInner).addEventListener('change', (e) => {
+            savePref('ktb:books-sort', e.target.value);
+            $('#books-sort', host).value = e.target.value;
+            go({ sort: e.target.value });
+        });
+        $('[data-filter="cabinet"]', panelInner).addEventListener('change', (e) => go({ cabinet: e.target.value }));
+    }
+
+    function syncFilterPanel() {
+        $$('[data-action="filter:status"]', panelInner).forEach((b) => b.classList.toggle('is-on', b.dataset.value === state.status));
+        $$('[data-action="books:status"]', host).forEach((b) => b.classList.toggle('is-on', b.dataset.value === state.status));
+    }
 
     $('#import-file', host).addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -257,50 +360,6 @@ export function mountBooks(host, app, params) {
 
 // ---------------------------------------------------------------------------
 
-function openFilters(app, state, apply) {
-    const { repo } = app;
-    const cats = [...repo.countBy('category')].sort((a, b) => b[1] - a[1]).map(([c, n]) => ({ id: c, label: c, sub: `${fmtNumber(n)} كتاب` }));
-    const authors = repo.authors().map((a) => ({ id: a.name, label: a.name, sub: `${fmtNumber(a.count)} كتاب` }));
-    const pubs = [...repo.countBy('publisher')].map(([p, n]) => ({ id: p, label: p, sub: `${fmtNumber(n)} كتاب` }));
-    const cabinets = distinctCabinets(repo.books);
-    const chosenCabinet = cabinets.find((c) => foldText(c) === foldText(state.cabinet)) || '';
-    openSheet({
-        title: 'تصفية الكتب',
-        body: html`
-            <form class="stack" data-action="filters:apply">
-                <div class="field"><span class="field__label">القسم</span><div id="f-cat"></div></div>
-                <div class="field"><span class="field__label">المؤلف</span><div id="f-author"></div></div>
-                <div class="field"><span class="field__label">دار النشر</span><div id="f-pub"></div></div>
-                <label class="field"><span class="field__label">الصندوق</span>
-                    <select class="input" name="cabinet"><option value="">الكل</option>${cabinets.map((c) => html`<option ${chosenCabinet === c ? 'selected' : ''}>${c}</option>`)}</select>
-                    <span class="field__hint">الأرقام البنغالية والعربية والإنجليزية تُعامل كرقم واحد (৫০ = ٥٠ = 50).</span>
-                </label>
-                <div class="form-actions">
-                    <button type="button" class="btn btn--ghost" data-action="filters:clear">مسح الفلاتر</button>
-                    <button type="submit" class="btn btn--primary">تطبيق</button>
-                </div>
-            </form>`,
-        onMount(panel, close) {
-            mountPicker(panel.querySelector('#f-cat'), { name: 'category', items: cats, placeholder: `ابحث في ${fmtNumber(cats.length)} قسماً…`, selectedId: state.category, allowClear: true });
-            mountPicker(panel.querySelector('#f-author'), { name: 'author', items: authors, placeholder: 'كل المؤلفين', selectedId: state.author, allowClear: true });
-            mountPicker(panel.querySelector('#f-pub'), { name: 'publisher', items: pubs, placeholder: 'كل دور النشر', selectedId: state.publisher, allowClear: true });
-            delegate(panel, {
-                'filters:apply': (form) => {
-                    const v = formValues(form);
-                    Object.assign(state, { category: v.category, author: v.author, publisher: v.publisher, cabinet: v.cabinet, page: 1 });
-                    apply();
-                    close();
-                },
-                'filters:clear': () => {
-                    Object.assign(state, { category: '', author: '', publisher: '', cabinet: '', page: 1 });
-                    apply();
-                    close();
-                },
-            }, ['click', 'submit']);
-        },
-    });
-}
-
 /**
  * Books per cabinet, keyed by the digit-normalised name. The label is the
  * first spelling met, so a cabinet keeps one name across pages (১ / ١ / 1).
@@ -314,6 +373,27 @@ function cabinetCounts(books) {
         else m.set(k, { count: 1, label: b.cabinet.trim() });
     }
     return m;
+}
+
+/** Compact two-column facts shown in the phone drawer. */
+function drawerContent(app, b) {
+    const { repo } = app;
+    const { copies, left } = repo.availability(b);
+    const facts = [
+        ['القسم', b.category], ['المحقق', b.editor], ['دار النشر', b.publisher], ['السنة', b.year],
+        ['الأجزاء', b.parts > 1 ? fmtNumber(b.parts) : ''], ['النسخ', copies > 1 || left < copies ? `${fmtNumber(left)} متاح من ${fmtNumber(copies)}` : ''],
+        ['الموقع', [isBlank(b.cabinet) ? '' : `الصندوق ${b.cabinet}`, isBlank(b.shelf) ? '' : `الطاق ${b.shelf}`].filter(Boolean).join(' · ')],
+    ].filter(([, v]) => v);
+    return html`
+        <div class="book-drawer__inner">
+            <dl class="mini-facts">${facts.map(([k, v]) => html`<div><dt>${k}</dt><dd>${v}</dd></div>`)}</dl>
+            ${b.notes ? html`<p class="book-drawer__note">${b.notes}</p>` : ''}
+            <div class="book-drawer__actions">
+                ${app.canEdit ? html`<button type="button" class="btn btn--soft btn--sm" data-action="drawer:edit" data-id="${b.id}">${icon('pencil-simple')} تعديل</button>` : ''}
+                ${app.canEdit && left > 0 ? html`<a class="btn btn--ghost btn--sm" href="#/loans?new=1&book=${b.id}">${icon('hand-arrow-up')} إعارة</a>` : ''}
+                <button type="button" class="btn btn--link btn--sm" data-action="drawer:more" data-id="${b.id}">المزيد ${icon('caret-left')}</button>
+            </div>
+        </div>`;
 }
 
 function openBooksMenu(app, host) {

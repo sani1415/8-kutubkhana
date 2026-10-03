@@ -531,7 +531,7 @@ input[dir='ltr'] { text-align: left; }
     background: rgb(30 31 36 / 0.32);
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
-    animation: fade var(--t-med) var(--ease-out);
+    animation: fade 320ms var(--ease-out);
 }
 .sheet[open] { display: flex; align-items: flex-end; justify-content: center; }
 .sheet__panel {
@@ -542,11 +542,11 @@ input[dir='ltr'] { text-align: left; }
     border-radius: var(--r-xl) var(--r-xl) 0 0;
     background: var(--surface);
     box-shadow: var(--sh-3);
-    animation: sheet-up var(--t-med) var(--ease-out);
+    animation: sheet-up 380ms cubic-bezier(0.32, 0.72, 0, 1);
     padding-bottom: var(--safe-b);
 }
-.sheet.is-closing .sheet__panel { animation: sheet-down 180ms var(--ease-in-out) forwards; }
-.sheet.is-closing::backdrop { opacity: 0; transition: opacity 180ms; }
+.sheet.is-closing .sheet__panel { animation: sheet-down 260ms cubic-bezier(0.32, 0.72, 0, 1) forwards; }
+.sheet.is-closing::backdrop { opacity: 0; transition: opacity 260ms; }
 .sheet__grip { width: 40px; height: 5px; margin: 10px auto 0; border-radius: 3px; background: var(--line-strong); }
 .sheet__head {
     display: flex;
@@ -564,7 +564,7 @@ input[dir='ltr'] { text-align: left; }
         width: min(560px, 100%);
         max-height: 88dvh;
         border-radius: var(--r-xl);
-        animation: pop var(--t-med) var(--ease-out);
+        animation: pop 320ms cubic-bezier(0.32, 0.72, 0, 1);
     }
     .sheet--sm .sheet__panel { width: min(440px, 100%); }
     .sheet--lg .sheet__panel { width: min(760px, 100%); }
