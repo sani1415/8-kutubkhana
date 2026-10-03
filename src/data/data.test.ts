@@ -221,3 +221,45 @@ describe('repository', () => {
         await expect(r.addMember({ name: 'زائر', phone: '', address: '' })).rejects.toThrow('صلاحية');
     });
 });
+
+describe('on-device copy', () => {
+    it('opens from the saved copy at once, then swaps in server data', async () => {
+        const { createMemoryCache } = await import('./cache');
+        const cache = createMemoryCache();
+        const first = new LibraryRepository(createMemoryBackend({ seed: demoSeed(), signedInAs: 'librarian' }), cache);
+        await first.start();
+        await first.saveNow();
+        expect(cache.entries.size).toBe(1);
+
+        // Second launch: the server is slow and has one more book.
+        const backend = createMemoryBackend({ seed: demoSeed(), signedInAs: 'librarian' });
+        await backend.books.insert({ name: 'كتاب جديد', author: 'مؤلف', category: 'عام', editor: '', parts: 1, publisher: '', year: '', copies: 1, cabinet: 'Z9', shelf: '', notes: '' });
+        let release!: () => void;
+        const gate = new Promise<void>((r) => { release = r; });
+        const slowLoad = backend.loadAll.bind(backend);
+        backend.loadAll = async () => { await gate; return slowLoad(); };
+
+        const second = new LibraryRepository(backend, cache);
+        const topics: string[] = [];
+        second.subscribe((t) => topics.push(t));
+        await second.start();
+        expect(second.stale).toBe(true);
+        expect(second.books).toHaveLength(demoSeed().books.length); // saved copy, server not answered yet
+
+        release();
+        await new Promise((r) => setTimeout(r, 10));
+        expect(second.stale).toBe(false);
+        expect(second.books).toHaveLength(demoSeed().books.length + 1);
+        expect(topics).toEqual(['auth', 'all']);
+    });
+
+    it('forgets the saved copy on sign-out', async () => {
+        const { createMemoryCache } = await import('./cache');
+        const cache = createMemoryCache();
+        const r = new LibraryRepository(createMemoryBackend({ seed: demoSeed(), signedInAs: 'admin' }), cache);
+        await r.start();
+        await r.saveNow();
+        await r.signOut();
+        expect(cache.entries.size).toBe(0);
+    });
+});

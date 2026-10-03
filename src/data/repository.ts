@@ -10,6 +10,8 @@ import {
     ValidationError, activeLoanCount, bookKey, normalizeBookInput, parseCSV, planImport, validateBook,
 } from './rules';
 import type { ImportPlan } from './rules';
+import { CACHE_VERSION } from './cache';
+import type { SnapshotCache } from './cache';
 import { LOAN_STATUS } from './types';
 import type {
     ArchiveDocument, AuthUser, Book, BookInput, DiaryInput, DocumentInput, LibraryBackend, LibrarySnapshot,
@@ -48,8 +50,11 @@ export class LibraryRepository {
     user: AuthUser | null = null;
     profile: Profile | null = null;
     loaded = false;
+    /** True while showing the on-device copy and the server refresh has not finished. */
+    stale = false;
+    private saveTimer: ReturnType<typeof setTimeout> | undefined;
 
-    constructor(readonly backend: LibraryBackend) {}
+    constructor(readonly backend: LibraryBackend, private readonly cache?: SnapshotCache) {}
 
     // ------------------------------------------------------------------ events
     subscribe(fn: Listener): () => void {
@@ -60,7 +65,49 @@ export class LibraryRepository {
     private emit(topic: ChangeTopic) {
         if (topic === 'books' || topic === 'all') this.bookIndex = new Map(this.data.books.map((b) => [b.id, b]));
         if (topic === 'members' || topic === 'all') this.memberIndex = new Map(this.data.members.map((m) => [m.id, m]));
+        if (topic !== 'auth' && this.loaded) this.scheduleSave();
         this.listeners.forEach((fn) => fn(topic));
+    }
+
+    // ------------------------------------------------------- on-device copy
+    private scheduleSave() {
+        if (!this.cache || !this.user || !this.profile) return;
+        clearTimeout(this.saveTimer);
+        this.saveTimer = setTimeout(() => void this.saveNow(), 1500);
+    }
+
+    /** Write the current library to the device now (also used by tests). */
+    async saveNow() {
+        clearTimeout(this.saveTimer);
+        if (!this.cache || !this.user || !this.profile || !this.loaded) return;
+        await this.cache.set(this.user.id, { version: CACHE_VERSION, savedAt: Date.now(), profile: this.profile, data: this.data });
+    }
+
+    /** Fetch profile + library from the server and swap them in place (no page remount). */
+    private async refreshFromServer(user: AuthUser) {
+        try {
+            const profile = (await this.backend.profiles.mine(user.id)) ?? (await this.backend.profiles.createMine(user));
+            if (this.user?.id !== user.id) return; // signed out meanwhile
+            const roleChanged = profile.role !== this.profile?.role;
+            this.profile = profile;
+            if (!this.hasAccess) {
+                this.data = emptySnapshot();
+                this.loaded = false;
+                await this.cache?.clear();
+                this.emit('auth');
+                return;
+            }
+            const data = await this.backend.loadAll();
+            if (this.user?.id !== user.id) return;
+            this.data = data;
+            this.loaded = true;
+            this.stale = false;
+            if (roleChanged) this.emit('auth');
+            else this.emit('all');
+        } catch (err) {
+            // Offline or server error: keep showing the on-device copy.
+            console.warn('Background refresh failed; showing saved copy.', err);
+        }
     }
 
     // -------------------------------------------------------------------- auth
@@ -85,7 +132,19 @@ export class LibraryRepository {
         this.profile = null;
         this.data = emptySnapshot();
         this.loaded = false;
+        this.stale = false;
         if (user) {
+            // Open instantly from the device copy, then refresh from the server behind it.
+            const saved = await this.cache?.get(user.id).catch(() => null);
+            if (saved && saved.profile.role !== 'pending') {
+                this.profile = saved.profile;
+                this.data = saved.data;
+                this.loaded = true;
+                this.stale = true;
+                this.emit('auth');
+                void this.refreshFromServer(user);
+                return;
+            }
             this.profile = (await this.backend.profiles.mine(user.id)) ?? (await this.backend.profiles.createMine(user));
             if (this.hasAccess) await this.reload();
         }
@@ -95,6 +154,7 @@ export class LibraryRepository {
     async reload(): Promise<void> {
         this.data = await this.backend.loadAll();
         this.loaded = true;
+        this.stale = false;
         this.emit('all');
     }
 
@@ -104,6 +164,8 @@ export class LibraryRepository {
     }
 
     async signOut() {
+        clearTimeout(this.saveTimer);
+        await this.cache?.clear();
         await this.backend.auth.signOut();
         await this.setUser(null);
     }

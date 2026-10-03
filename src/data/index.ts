@@ -4,6 +4,7 @@
  * return it here. The UI imports only `createRepository` and the types.
  */
 import { LibraryRepository } from './repository';
+import { createIndexedDbCache } from './cache';
 import type { LibraryBackend } from './types';
 
 export { LibraryRepository } from './repository';
@@ -28,5 +29,7 @@ async function pickBackend(): Promise<LibraryBackend> {
 }
 
 export async function createRepository(): Promise<LibraryRepository> {
-    return new LibraryRepository(await pickBackend());
+    const backend = await pickBackend();
+    // Demo mode always starts from its seed, so it gets no device cache.
+    return new LibraryRepository(backend, backend.name === 'memory' ? undefined : createIndexedDbCache());
 }

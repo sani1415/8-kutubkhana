@@ -284,6 +284,8 @@ input[dir='ltr'] { text-align: left; }
 .search:focus-within { border-color: var(--accent); box-shadow: var(--ring); }
 .search i { color: var(--ink-3); font-size: 19px; }
 .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 16px; }
+/* the box already shows focus; no second ring around the text itself */
+.search input:focus-visible, .picker__input:focus-visible { box-shadow: none; }
 .search input::-webkit-search-cancel-button { filter: grayscale(1); }
 
 .active-filters { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-3); }
@@ -528,13 +530,13 @@ input[dir='ltr'] { text-align: left; }
     overflow: hidden;
 }
 .sheet::backdrop {
-    background: rgb(30 31 36 / 0.32);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
+    /* plain dim, no blur: blurring the page every frame made sheets stutter on phones */
+    background: rgb(30 31 36 / 0.38);
     animation: fade 320ms var(--ease-out);
 }
 .sheet[open] { display: flex; align-items: flex-end; justify-content: center; }
 .sheet__panel {
+    will-change: transform;
     width: 100%;
     max-height: 92dvh;
     display: flex;

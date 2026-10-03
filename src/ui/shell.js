@@ -307,8 +307,11 @@ export function startShell(root, repo) {
         if (topic === 'all' || topic === 'taxonomy') setCategoryOrder(repo.categories);
         if (topic === 'auth') return renderGate();
         if (topic === 'all') {
-            // Re-render the whole page after a full reload.
-            if (current) route();
+            // Fresh data arrived: let the current page redraw in place so typing,
+            // scroll position and open drawers are kept. Pages without update() remount.
+            if (!current) return;
+            if (current.instance?.update) ['books', 'members', 'loans', 'diary', 'documents', 'taxonomy'].forEach((t) => current.instance.update(t));
+            else route();
             return;
         }
         current?.instance?.update?.(topic);

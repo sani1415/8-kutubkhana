@@ -1,7 +1,7 @@
 /*
  * Design direction: "Sage Paper" — warm paper-white, sage green accent (a
  * softer cousin of the library's original #1a5f4a), clay for "on loan".
- * Reem Kufi for display, IBM Plex Sans Arabic for text. Soft springy motion.
+ * Noto Kufi Arabic for display, IBM Plex Sans Arabic for text. Soft springy motion.
  * Signature: books drawn as coloured spines (shelf chart, card edges).
  */
 :root {
@@ -37,7 +37,7 @@
 
     /* type */
     --font-body: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, system-ui, sans-serif;
-    --font-display: 'Reem Kufi', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+    --font-display: 'Noto Kufi Arabic', 'IBM Plex Sans Arabic', system-ui, sans-serif;
     --fs-xs: 0.75rem;
     --fs-sm: 0.8125rem;
     --fs-md: 0.9375rem;

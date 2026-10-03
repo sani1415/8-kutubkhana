@@ -28,7 +28,7 @@ export function mountDashboard(host, app) {
         const health = s.books ? Math.round(((s.books - incomplete) / s.books) * 100) : 100;
 
         const kpis = [
-            { href: '#/books', icon: 'books', num: s.books, label: 'كتاباً', sub: `${fmtNumber(s.copies)} نسخة`, tone: 'main' },
+            { href: '#/books', icon: 'books', num: s.books, label: 'كتاباً', tone: 'main' },
             { href: '#/books?sort=new', icon: 'calendar-plus', num: addedThisMonth, label: 'أُضيف خلال 30 يوماً', tone: 'ok' },
             { href: '#/loans', icon: 'hand-arrow-up', num: s.activeLoans, label: 'معار الآن', sub: overdue ? `${fmtNumber(overdue)} متأخرة` : '', tone: 'loan' },
             { href: '#/members', icon: 'users-three', num: s.members, label: 'عضواً' },
