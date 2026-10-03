@@ -5,6 +5,17 @@ import { missingFields } from '../../data/rules.ts';
 
 const OVERDUE_DAYS = 14;
 const RECENT = 30;
+const BARS_FIRST = 60; // categories drawn at first; the rest arrive as the panel scrolls
+const BARS_STEP = 120;
+
+function barItem([name, n], i, maxCat) {
+    return html`
+        <li><button class="bar" data-action="cat:open" data-cat="${name}" style="--w:${Math.max(3, Math.round((n / maxCat) * 100))}%;--c:${spineColor(name)};--i:${Math.min(i, 14)}">
+            <span class="bar__name">${name}</span>
+            <span class="bar__track"><span class="bar__fill"></span></span>
+            <span class="bar__num">${fmtNumber(n)}</span>
+        </button></li>`;
+}
 
 /**
  * Home: KPI tiles, then two equal panels (all categories, recently added)
@@ -38,12 +49,7 @@ export function mountDashboard(host, app) {
         const catsPanel = html`
             <article class="card panel">
                 <header class="panel__head"><h2>${icon('stack', 'duotone')} الأقسام</h2><a href="#/categories">${fmtNumber(cats.length)} قسماً ${icon('caret-left')}</a></header>
-                ${cats.length ? html`<ul class="bars panel__scroll">${cats.map(([name, n], i) => html`
-                    <li><button class="bar" data-action="cat:open" data-cat="${name}" style="--w:${Math.max(3, Math.round((n / maxCat) * 100))}%;--c:${spineColor(name)};--i:${Math.min(i, 14)}">
-                        <span class="bar__name">${name}</span>
-                        <span class="bar__track"><span class="bar__fill"></span></span>
-                        <span class="bar__num">${fmtNumber(n)}</span>
-                    </button></li>`)}</ul>` : emptyState({ title: 'لا توجد أقسام' })}
+                ${cats.length ? html`<ul class="bars panel__scroll" id="bars">${cats.slice(0, BARS_FIRST).map((c, i) => barItem(c, i, maxCat))}</ul>` : emptyState({ title: 'لا توجد أقسام' })}
             </article>`;
 
         const recentPanel = html`
@@ -88,6 +94,19 @@ export function mountDashboard(host, app) {
                 ${catsPanel}
                 ${recentPanel}
             </section>`);
+
+        // Fewer nodes on screen keeps sheets and page changes smooth on phones.
+        const bars = host.querySelector('#bars');
+        if (bars && cats.length > BARS_FIRST) {
+            let shown = BARS_FIRST;
+            const more = () => {
+                if (shown >= cats.length || bars.scrollTop + bars.clientHeight < bars.scrollHeight - 300) return;
+                const next = cats.slice(shown, shown + BARS_STEP);
+                bars.insertAdjacentHTML('beforeend', next.map((c) => String(barItem(c, 0, maxCat))).join(''));
+                shown += next.length;
+            };
+            bars.addEventListener('scroll', more, { passive: true });
+        }
 
         const panels = host.querySelector('#dash-panels');
         if (tab) panels.scrollTo({ left: -tab * panelStep(panels), behavior: 'instant' });

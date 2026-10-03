@@ -16,6 +16,10 @@ export function openSheet({ title, body, size = 'md', onMount, actions = {} }) {
     return new Promise((resolve) => {
         const dlg = document.createElement('dialog');
         dlg.className = `sheet sheet--${size}`;
+        // Focus the dialog itself on open: auto-focusing the first button scrolled the
+        // sheet mid-animation, which made it jump.
+        dlg.setAttribute('autofocus', '');
+        dlg.tabIndex = -1;
         dlg.setAttribute('aria-label', title || '');
         setHtml(dlg, html`
             <div class="sheet__panel">

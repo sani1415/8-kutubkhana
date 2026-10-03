@@ -527,7 +527,8 @@ input[dir='ltr'] { text-align: left; }
     width: 100%;
     height: 100%;
     margin: 0;
-    overflow: hidden;
+    overflow: clip; /* not a scroll container, so focusing inside can never shift the sheet */
+    outline: none;
 }
 .sheet::backdrop {
     /* plain dim, no blur: blurring the page every frame made sheets stutter on phones */
