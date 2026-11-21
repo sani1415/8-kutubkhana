@@ -59,10 +59,8 @@ export function normalizeBookInput(raw: Partial<Record<keyof BookInput, unknown>
 }
 
 export function validateBook(book: BookInput): void {
+    // Only the title is required; everything else can be filled in later.
     if (!book.name) throw new ValidationError('اسم الكتاب مطلوب');
-    if (!book.author) throw new ValidationError('المؤلف مطلوب');
-    if (!book.category) throw new ValidationError('القسم مطلوب');
-    if (!book.cabinet) throw new ValidationError('الصندوق مطلوب');
     if (!Number.isInteger(book.parts) || book.parts < 1) throw new ValidationError('عدد الأجزاء يجب أن يكون 1 أو أكثر');
     if (!Number.isInteger(book.copies) || book.copies < 1) throw new ValidationError('عدد النسخ يجب أن يكون 1 أو أكثر');
 }
@@ -284,7 +282,10 @@ const COMPARED: [keyof BookInput, string][] = [
 const COMPARED_BY_ID: [keyof BookInput, string][] = [
     ['name', 'اسم الكتاب'], ['author', 'المؤلف'], ['publisher', 'دار النشر'], ...COMPARED,
 ];
-const REQUIRED: (keyof BookInput)[] = ['name', 'author', 'category', 'cabinet'];
+const REQUIRED: (keyof BookInput)[] = ['name'];
+
+/** Every column of a row, so only exact repeats within one file collapse. */
+const rowKey = (b: BookInput) => (Object.keys(b) as (keyof BookInput)[]).sort().map((k) => clean(b[k]).toLowerCase()).join('');
 
 function changesBetween(current: Book, next: BookInput, fields: [keyof BookInput, string][]): FieldChange[] {
     return fields
@@ -298,7 +299,9 @@ function changesBetween(current: Book, next: BookInput, fields: [keyof BookInput
  *   Any column may change; a missing column or a blank required cell keeps the
  *   current value, a blank optional cell clears it.
  * - Other rows match an existing book by title + author + publisher.
- * - Rows without an id that miss a required field are skipped.
+ * - Rows without an id and without a title are skipped.
+ * - Repeated rows in one file are added once; rows that differ in any column
+ *   (e.g. the same title on two shelves) are all added.
  */
 export function planImport(rows: string[][], existing: Book[]): ImportPlan {
     const plan: ImportPlan = { add: [], update: [], unchanged: 0, skipped: 0, categories: [], publishers: [] };
@@ -334,7 +337,7 @@ export function planImport(rows: string[][], existing: Book[]): ImportPlan {
                 parts: pick('parts'), publisher: pick('publisher'), year: pick('year'), copies: pick('copies'),
                 cabinet: pick('cabinet'), shelf: pick('shelf'), notes: pick('notes'),
             });
-            cats.add(book.category);
+            if (book.category) cats.add(book.category);
             if (book.publisher) pubs.add(book.publisher);
             const changes = changesBetween(target, book, COMPARED_BY_ID);
             if (changes.length) plan.update.push({ id: target.id, book, name: target.name, author: target.author, changes });
@@ -349,7 +352,7 @@ export function planImport(rows: string[][], existing: Book[]): ImportPlan {
         });
         book.year = parseYear(get('year'));
         if (REQUIRED.some((f) => !book[f])) { plan.skipped++; continue; }
-        cats.add(book.category);
+        if (book.category) cats.add(book.category);
         if (book.publisher) pubs.add(book.publisher);
 
         const key = bookKey(book, true);
@@ -358,8 +361,8 @@ export function planImport(rows: string[][], existing: Book[]): ImportPlan {
             const changes = changesBetween(match, book, COMPARED);
             if (changes.length) plan.update.push({ id: match.id, book, name: match.name, author: match.author, changes });
             else plan.unchanged++;
-        } else if (!seenNew.has(key)) {
-            seenNew.add(key);
+        } else if (!seenNew.has(rowKey(book))) {
+            seenNew.add(rowKey(book));
             plan.add.push(book);
         } else {
             plan.unchanged++;

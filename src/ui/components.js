@@ -128,11 +128,11 @@ export function bookFormFields(repo, book = {}) {
     return html`
         <div class="form-grid">
             ${field({ label: 'اسم الكتاب', name: 'name', value: book.name, required: true, full: true, placeholder: 'مثال: رياض الصالحين' })}
-            ${field({ label: 'المؤلف', name: 'author', value: book.author, required: true, list: 'dl-authors' })}
+            ${field({ label: 'المؤلف', name: 'author', value: book.author, list: 'dl-authors' })}
             ${field({ label: 'المحقق', name: 'editor', value: book.editor })}
-            ${field({ label: 'القسم', name: 'category', value: book.category, required: true, list: 'dl-categories', hint: 'اختر من القائمة أو اكتب قسماً جديداً' })}
+            ${field({ label: 'القسم', name: 'category', value: book.category, list: 'dl-categories', hint: 'اختر من القائمة أو اكتب قسماً جديداً' })}
             ${field({ label: 'دار النشر', name: 'publisher', value: book.publisher, list: 'dl-publishers' })}
-            ${field({ label: 'الصندوق', name: 'cabinet', value: book.cabinet, required: true, placeholder: 'A1' })}
+            ${field({ label: 'الصندوق', name: 'cabinet', value: book.cabinet, placeholder: 'A1' })}
             ${field({ label: 'الطاق', name: 'shelf', value: book.shelf, placeholder: '3' })}
             ${field({ label: 'الأجزاء', name: 'parts', value: book.parts ?? 1, type: 'number', attrs: 'min="1" inputmode="numeric"' })}
             ${field({ label: 'النسخ', name: 'copies', value: book.copies ?? 1, type: 'number', attrs: 'min="1" inputmode="numeric"' })}

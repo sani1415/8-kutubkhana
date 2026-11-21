@@ -41,12 +41,15 @@ describe('rules', () => {
         const bukhari = existing[0];
         const rows = parseCSV(CSV_TEMPLATE);
         rows.push([bukhari.name, bukhari.author, bukhari.category, bukhari.editor, String(bukhari.parts), bukhari.publisher, bukhari.year, '7', '', bukhari.cabinet, bukhari.shelf, bukhari.notes]);
-        rows.push(['بلا مؤلف', '', 'فقه', '', '', '', '', '', '', 'A1', '', '']);
+        rows.push(['', 'بلا عنوان', 'فقه', '', '', '', '', '', '', 'A1', '', '']);
+        rows.push(['بلا مؤلف', '', '', '', '', '', '', '', '', '', '', '']);
         rows.push(['الأم', 'الشافعي', 'فقه', '', '٨', '', '', '', '', 'C3', '', '']);
         rows.push(['الأم', 'الشافعي', 'فقه', '', '٨', '', '', '', '', 'C3', '', '']);
+        rows.push(['الأم', 'الشافعي', 'فقه', '', '٨', '', '', '', '', 'C4', '', '']);
         const plan = planImport(rows, existing);
-        expect(plan.add.map((b) => b.name)).toEqual(['صحيح البخاري', 'الأم']);
-        expect(plan.add[1].parts).toBe(8);
+        expect(plan.add.map((b) => b.name)).toEqual(['صحيح البخاري', 'بلا مؤلف', 'الأم', 'الأم']);
+        expect(plan.add[2].parts).toBe(8);
+        expect(plan.categories).not.toContain('');
         expect(plan.update).toHaveLength(1);
         expect(plan.update[0].changes).toEqual([{ field: 'النسخ', old: 3, new: 7 }]);
         expect(plan.skipped).toBe(1);
@@ -117,14 +120,23 @@ describe('export → fill in → import round trip', () => {
         expect(plan.update[0].changes).toEqual([{ field: 'دار النشر', old: '', new: 'دار المعارف' }]);
     });
 
-    it('keeps required fields when their cells are left blank, and can fix a title', () => {
+    it('keeps the title when its cell is left blank; other blank cells clear', () => {
         const target = existing[0];
         const rows = booksToRows([target]);
         const head = rows[0] as string[];
         (rows[1] as unknown[])[head.indexOf('الصندوق')] = '';
-        (rows[1] as unknown[])[head.indexOf('اسم الكتاب')] = 'الجامع الصحيح';
+        (rows[1] as unknown[])[head.indexOf('اسم الكتاب')] = '';
         const plan = planImport(parseCSV(toCSV(rows)), existing);
-        expect(plan.update[0].book.cabinet).toBe(target.cabinet);
+        expect(plan.update[0].book.name).toBe(target.name);
+        expect(plan.update[0].book.cabinet).toBe('');
+        expect(plan.update[0].changes.map((c) => c.field)).toEqual(['الصندوق']);
+    });
+
+    it('can fix a title through its id', () => {
+        const target = existing[0];
+        const rows = booksToRows([target]);
+        (rows[1] as unknown[])[(rows[0] as string[]).indexOf('اسم الكتاب')] = 'الجامع الصحيح';
+        const plan = planImport(parseCSV(toCSV(rows)), existing);
         expect(plan.update[0].changes.map((c) => c.field)).toEqual(['اسم الكتاب']);
     });
 
@@ -181,7 +193,10 @@ describe('repository', () => {
 
     it('adds books with validation and registers new taxonomy', async () => {
         const r = await repo();
-        await expect(r.addBook({ name: 'كتاب', author: '', category: 'فقه', cabinet: 'A1' })).rejects.toThrow('المؤلف مطلوب');
+        await expect(r.addBook({ name: ' ', author: 'الشاطبي' })).rejects.toThrow('اسم الكتاب مطلوب');
+        const bare = await r.addBook({ name: 'كتاب بلا تفاصيل' });
+        expect(bare.author).toBe('');
+        expect(r.categories).not.toContain('');
         const b = await r.addBook({ name: 'الموافقات', author: 'الشاطبي', category: 'أصول الفقه', cabinet: 'C3', publisher: 'دار ابن عفان', parts: '٦' });
         expect(b.parts).toBe(6);
         expect(r.categories).toContain('أصول الفقه');
@@ -207,11 +222,11 @@ describe('repository', () => {
         expect(r.previewImport(CSV_TEMPLATE).add).toHaveLength(0);
     });
 
-    it('saves scanned books and skips duplicates and incomplete rows', async () => {
+    it('saves scanned books and skips duplicates and untitled rows', async () => {
         const r = await repo();
         const scanned = await r.scanBooks({ base64: '', mimeType: 'image/jpeg' });
         const withCabinet = scanned.map((s) => ({ ...s, cabinet: 'F1' }));
-        const result = await r.saveScanned([...withCabinet, withCabinet[0], { ...withCabinet[0], cabinet: '' }]);
+        const result = await r.saveScanned([...withCabinet, withCabinet[0], { ...withCabinet[0], name: '' }]);
         expect(result).toEqual({ saved: 2, duplicates: 1, invalid: 1 });
     });
 

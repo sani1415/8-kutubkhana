@@ -452,11 +452,11 @@ function drawerEditForm(repo, b) {
         <form class="book-drawer__inner drawer-form" data-action="drawer:save" data-id="${b.id}" autocomplete="off">
             <div class="drawer-form__grid">
                 ${input('name', 'اسم الكتاب', { full: true, attrs: 'required' })}
-                ${input('author', 'المؤلف', { attrs: 'required' })}
+                ${input('author', 'المؤلف')}
                 ${input('editor', 'المحقق')}
-                ${input('category', 'القسم', { list: 'dl-d-categories', attrs: 'required' })}
+                ${input('category', 'القسم', { list: 'dl-d-categories' })}
                 ${input('publisher', 'دار النشر', { list: 'dl-d-publishers' })}
-                ${input('cabinet', 'الصندوق', { attrs: 'required' })}
+                ${input('cabinet', 'الصندوق')}
                 ${input('shelf', 'الطاق')}
                 ${input('year', 'السنة', { attrs: 'inputmode="numeric"' })}
                 ${input('parts', 'الأجزاء', { type: 'number', attrs: 'min="1" inputmode="numeric"' })}
@@ -523,7 +523,7 @@ export async function importBooks(app, file) {
                 <div><b>${fmtNumber(plan.unchanged)}</b><span>بلا تغيير</span></div>
                 <div class="${plan.skipped ? 'is-warn' : ''}"><b>${fmtNumber(plan.skipped)}</b><span>ناقص (يُتخطى)</span></div>
             </div>
-            ${plan.skipped ? html`<p class="note">${icon('info')} الصفوف التي ينقصها اسم الكتاب أو المؤلف أو القسم أو الصندوق لا تُستورد.</p>` : ''}
+            ${plan.skipped ? html`<p class="note">${icon('info')} الصفوف التي ليس فيها اسم الكتاب لا تُستورد.</p>` : ''}
             ${plan.update.length ? html`
                 <details class="changes"><summary>عرض التحديثات (${fmtNumber(plan.update.length)})</summary>
                 <ul>${plan.update.slice(0, 50).map((u) => html`<li><strong>${u.name}</strong> — ${u.changes.map((c) => `${c.field}: «${c.old || 'فارغ'}» ← «${c.new || 'فارغ'}»`).join('، ')}</li>`)}</ul>

@@ -99,7 +99,7 @@ export function mountScan(host, app) {
     function renderReview() {
         return html`
             <div class="review-head">
-                <p><b>${fmtNumber(s.rows.length)}</b> كتاباً مستخرجاً. راجع البيانات وصحّح ما يلزم — الحقول المطلوبة: العنوان، المؤلف، القسم، الصندوق.</p>
+                <p><b>${fmtNumber(s.rows.length)}</b> كتاباً مستخرجاً. راجع البيانات وصحّح ما يلزم — الحقل المطلوب: العنوان فقط.</p>
             </div>
             <div class="review-grid">${s.rows.map((r, i) => html`
                 <article class="card review" data-i="${i}">
@@ -107,7 +107,7 @@ export function mountScan(host, app) {
                         <button class="icon-btn icon-btn--sm" data-action="scan:drop" data-i="${i}" aria-label="حذف">${icon('trash')}</button></header>
                     <div class="form-grid form-grid--tight">${FIELDS.map(([k, label, full, list]) => html`
                         <label class="field ${full ? 'field--full' : ''}"><span class="field__label">${label}</span>
-                            <input class="input input--sm ${['name', 'author', 'category', 'cabinet'].includes(k) && !String(r[k] || '').trim() ? 'is-missing' : ''}" data-k="${k}" value="${r[k] ?? ''}" ${list ? html`list="${list}"` : ''}></label>`)}</div>
+                            <input class="input input--sm ${k === 'name' && !String(r[k] || '').trim() ? 'is-missing' : ''}" data-k="${k}" value="${r[k] ?? ''}" ${list ? html`list="${list}"` : ''}></label>`)}</div>
                 </article>`)}</div>
             ${datalist('dl-scan-cats', repo.categories)}${datalist('dl-scan-pubs', repo.publishers)}
             <div class="form-actions form-actions--sticky">
