@@ -216,6 +216,7 @@ export function mountBooks(host, app, params) {
             buildFilterPanel();
         },
         'filter:close': () => toggleFilterPanel(false),
+        'books:menu': () => openBooksMenu(app, host),
         'book:open': (el, ev) => {
             if (ev.target.closest('input,button:not([data-action="book:open"])')) return;
             drawers.open(el);
