@@ -512,7 +512,8 @@ export async function importBooks(app, file) {
     } catch (err) {
         return toastError(err, 'تعذر قراءة الملف');
     }
-    const work = plan.add.length + plan.update.length;
+    const dups = plan.duplicates;
+    const where = (d) => [d.cabinet && `الصندوق ${d.cabinet}`, d.shelf && `الطاق ${d.shelf}`].filter(Boolean).join('، ');
     openSheet({
         title: 'معاينة الاستيراد',
         body: html`
@@ -522,14 +523,18 @@ export async function importBooks(app, file) {
                 <div><b>${fmtNumber(plan.update.length)}</b><span>سيُحدَّث</span></div>
                 <div><b>${fmtNumber(plan.unchanged)}</b><span>بلا تغيير</span></div>
                 <div class="${plan.skipped ? 'is-warn' : ''}"><b>${fmtNumber(plan.skipped)}</b><span>بلا اسم (يُتخطى)</span></div>
-                <div class="${plan.duplicates.length ? 'is-warn' : ''}"><b>${fmtNumber(plan.duplicates.length)}</b><span>مكرر (يُتخطى)</span></div>
+                <div class="${dups.length ? 'is-warn' : ''}"><b>${fmtNumber(dups.length)}</b><span>مكرر</span></div>
             </div>
             ${plan.skipped ? html`<p class="note">${icon('info')} الصفوف التي ليس فيها اسم الكتاب لا تُستورد.</p>` : ''}
-            ${plan.duplicates.length ? html`
-                <p class="note">${icon('copy')} صفوف تكرّر فيها اسم الكتاب والمؤلف ودار النشر مع صف سابق في الملف، فلم تُستورد. إن كانت كتباً مختلفة فميّزها في الملف (مثلاً بالمؤلف أو دار النشر) ثم استوردها مجدداً.</p>
-                <details class="changes" open><summary>عرض المكررات (${fmtNumber(plan.duplicates.length)})</summary>
-                <ul>${plan.duplicates.slice(0, 200).map((d) => html`<li><strong>${d.name}</strong>${d.author ? ` — ${d.author}` : ''}${d.publisher ? ` · ${d.publisher}` : ''}${[d.cabinet && `الصندوق ${d.cabinet}`, d.shelf && `الطاق ${d.shelf}`].filter(Boolean).length ? html` <span class="muted">(${[d.cabinet && `الصندوق ${d.cabinet}`, d.shelf && `الطاق ${d.shelf}`].filter(Boolean).join('، ')})</span>` : ''}</li>`)}</ul>
-                ${plan.duplicates.length > 200 ? html`<p class="muted">و${fmtNumber(plan.duplicates.length - 200)} غيرها…</p>` : ''}
+            ${dups.length ? html`
+                <p class="note">${icon('copy')} صفوف تكرّر فيها اسم الكتاب والمؤلف ودار النشر مع صف سابق في الملف، فلا تُستورد. إن كان بعضها كتباً مختلفة فعلِّم عليها لتُضاف أيضاً.</p>
+                <details class="changes dup-list" open>
+                    <summary>المكررات (${fmtNumber(dups.length)}) · <span data-role="dup-count">لم يُحدَّد شيء</span></summary>
+                    <label class="dup-all"><input type="checkbox" data-role="dup-all"> استيراد كل المكررات</label>
+                    <ul>${dups.map((d, i) => html`<li><label>
+                        <input type="checkbox" data-dup="${i}">
+                        <span><strong>${d.name}</strong>${d.author ? ` — ${d.author}` : ''}${d.publisher ? ` · ${d.publisher}` : ''}${where(d) ? html` <span class="muted">(${where(d)})</span>` : ''}</span>
+                    </label></li>`)}</ul>
                 </details>` : ''}
             ${plan.update.length ? html`
                 <details class="changes"><summary>عرض التحديثات (${fmtNumber(plan.update.length)})</summary>
@@ -538,15 +543,37 @@ export async function importBooks(app, file) {
             <div class="progress" hidden><div class="progress__bar"></div><span class="progress__text"></span></div>
             <div class="form-actions">
                 <button class="btn btn--ghost" data-action="sheet:close">إلغاء</button>
-                <button class="btn btn--primary" data-action="import:run" ${work ? '' : 'disabled'}>${icon('check')} استيراد ${fmtNumber(work)}</button>
+                <button class="btn btn--primary" data-action="import:run"></button>
             </div>`,
+        onMount(panel) {
+            const run = $('[data-action="import:run"]', panel);
+            const boxes = $$('[data-dup]', panel);
+            const all = $('[data-role="dup-all"]', panel);
+            const sync = () => {
+                const picked = boxes.filter((b) => b.checked).length;
+                const work = plan.add.length + plan.update.length + picked;
+                setHtml(run, html`${icon('check')} استيراد ${fmtNumber(work)}`);
+                run.disabled = !work;
+                if (!all) return;
+                all.checked = picked === boxes.length;
+                all.indeterminate = picked > 0 && picked < boxes.length;
+                $('[data-role="dup-count"]', panel).textContent = picked ? `سيُضاف ${fmtNumber(picked)}` : 'لم يُحدَّد شيء';
+            };
+            all?.addEventListener('change', () => { boxes.forEach((b) => { b.checked = all.checked; }); sync(); });
+            boxes.forEach((b) => b.addEventListener('change', sync));
+            sync();
+        },
         actions: {
             'import:run': async (el, _ev, close) => {
                 const panel = el.closest('.sheet__body');
+                // Duplicates the user ticked are added as separate books.
+                const extra = $$('[data-dup]', panel).filter((b) => b.checked).map((b) => dups[Number(b.dataset.dup)]);
+                const runPlan = { ...plan, add: [...plan.add, ...extra] };
+                $$('input[type=checkbox]', panel).forEach((b) => { b.disabled = true; });
                 const prog = $('.progress', panel);
                 prog.hidden = false;
                 await withBusy(el, async () => {
-                    const res = await repo.runImport(plan, (done, total) => {
+                    const res = await repo.runImport(runPlan, (done, total) => {
                         $('.progress__bar', prog).style.width = `${total ? (done / total) * 100 : 100}%`;
                         $('.progress__text', prog).textContent = `${fmtNumber(done)} / ${fmtNumber(total)}`;
                     });

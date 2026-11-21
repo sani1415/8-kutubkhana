@@ -200,6 +200,11 @@ body[data-page='dashboard'] { overflow: hidden; }
 .changes { margin: var(--s-3) 0; padding: var(--s-3) var(--s-4); border-radius: var(--r-md); background: var(--surface-2); font-size: var(--fs-sm); }
 .changes summary { cursor: pointer; font-weight: 600; }
 .changes ul { margin: var(--s-2) 0 0; padding-inline-start: 18px; display: grid; gap: 6px; color: var(--ink-2); }
+.dup-list ul { list-style: none; padding: 0; max-height: 260px; overflow-y: auto; gap: 2px; }
+.dup-list li label, .dup-all { display: flex; gap: var(--s-2); align-items: flex-start; padding: 6px 4px; border-radius: var(--r-sm); cursor: pointer; }
+.dup-list li label:hover { background: var(--surface); }
+.dup-list input, .dup-all input { margin-top: 3px; flex-shrink: 0; width: 18px; height: 18px; accent-color: var(--accent-deep); }
+.dup-all { margin-top: var(--s-2); font-weight: 600; color: var(--ink); border-bottom: 1px solid var(--line); border-radius: 0; padding-bottom: var(--s-2); }
 
 .detail-hero { display: flex; gap: var(--s-4); align-items: center; }
 .detail-hero__book {
