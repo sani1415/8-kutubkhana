@@ -521,9 +521,16 @@ export async function importBooks(app, file) {
                 <div><b>${fmtNumber(plan.add.length)}</b><span>كتاب جديد</span></div>
                 <div><b>${fmtNumber(plan.update.length)}</b><span>سيُحدَّث</span></div>
                 <div><b>${fmtNumber(plan.unchanged)}</b><span>بلا تغيير</span></div>
-                <div class="${plan.skipped ? 'is-warn' : ''}"><b>${fmtNumber(plan.skipped)}</b><span>ناقص (يُتخطى)</span></div>
+                <div class="${plan.skipped ? 'is-warn' : ''}"><b>${fmtNumber(plan.skipped)}</b><span>بلا اسم (يُتخطى)</span></div>
+                <div class="${plan.duplicates.length ? 'is-warn' : ''}"><b>${fmtNumber(plan.duplicates.length)}</b><span>مكرر (يُتخطى)</span></div>
             </div>
             ${plan.skipped ? html`<p class="note">${icon('info')} الصفوف التي ليس فيها اسم الكتاب لا تُستورد.</p>` : ''}
+            ${plan.duplicates.length ? html`
+                <p class="note">${icon('copy')} صفوف تكرّر فيها اسم الكتاب والمؤلف ودار النشر مع صف سابق في الملف، فلم تُستورد. إن كانت كتباً مختلفة فميّزها في الملف (مثلاً بالمؤلف أو دار النشر) ثم استوردها مجدداً.</p>
+                <details class="changes" open><summary>عرض المكررات (${fmtNumber(plan.duplicates.length)})</summary>
+                <ul>${plan.duplicates.slice(0, 200).map((d) => html`<li><strong>${d.name}</strong>${d.author ? ` — ${d.author}` : ''}${d.publisher ? ` · ${d.publisher}` : ''}${[d.cabinet && `الصندوق ${d.cabinet}`, d.shelf && `الطاق ${d.shelf}`].filter(Boolean).length ? html` <span class="muted">(${[d.cabinet && `الصندوق ${d.cabinet}`, d.shelf && `الطاق ${d.shelf}`].filter(Boolean).join('، ')})</span>` : ''}</li>`)}</ul>
+                ${plan.duplicates.length > 200 ? html`<p class="muted">و${fmtNumber(plan.duplicates.length - 200)} غيرها…</p>` : ''}
+                </details>` : ''}
             ${plan.update.length ? html`
                 <details class="changes"><summary>عرض التحديثات (${fmtNumber(plan.update.length)})</summary>
                 <ul>${plan.update.slice(0, 50).map((u) => html`<li><strong>${u.name}</strong> — ${u.changes.map((c) => `${c.field}: «${c.old || 'فارغ'}» ← «${c.new || 'فارغ'}»`).join('، ')}</li>`)}</ul>

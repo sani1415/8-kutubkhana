@@ -270,6 +270,8 @@ export interface ImportPlan {
     update: { id: string; book: BookInput; name: string; author: string; changes: FieldChange[] }[];
     unchanged: number;
     skipped: number;
+    /** Rows left out because an earlier row in the same file has the same title, author and publisher. */
+    duplicates: BookInput[];
     categories: string[];
     publishers: string[];
 }
@@ -284,9 +286,6 @@ const COMPARED_BY_ID: [keyof BookInput, string][] = [
 ];
 const REQUIRED: (keyof BookInput)[] = ['name'];
 
-/** Every column of a row, so only exact repeats within one file collapse. */
-const rowKey = (b: BookInput) => (Object.keys(b) as (keyof BookInput)[]).sort().map((k) => clean(b[k]).toLowerCase()).join('');
-
 function changesBetween(current: Book, next: BookInput, fields: [keyof BookInput, string][]): FieldChange[] {
     return fields
         .filter(([f]) => String(current[f] ?? '').trim() !== String(next[f] ?? '').trim())
@@ -300,11 +299,11 @@ function changesBetween(current: Book, next: BookInput, fields: [keyof BookInput
  *   current value, a blank optional cell clears it.
  * - Other rows match an existing book by title + author + publisher.
  * - Rows without an id and without a title are skipped.
- * - Repeated rows in one file are added once; rows that differ in any column
- *   (e.g. the same title on two shelves) are all added.
+ * - A later row with the same title + author + publisher as an earlier row in
+ *   the file is left out and listed in `duplicates`, so the preview can show it.
  */
 export function planImport(rows: string[][], existing: Book[]): ImportPlan {
-    const plan: ImportPlan = { add: [], update: [], unchanged: 0, skipped: 0, categories: [], publishers: [] };
+    const plan: ImportPlan = { add: [], update: [], unchanged: 0, skipped: 0, duplicates: [], categories: [], publishers: [] };
     if (rows.length < 2) return plan;
     const header = rows[0].map((h) => clean(h));
     const index = new Map<keyof BookInput, number>();
@@ -356,16 +355,15 @@ export function planImport(rows: string[][], existing: Book[]): ImportPlan {
         if (book.publisher) pubs.add(book.publisher);
 
         const key = bookKey(book, true);
+        if (seenNew.has(key)) { plan.duplicates.push(book); continue; }
+        seenNew.add(key);
         const match = byKey.get(key);
         if (match) {
             const changes = changesBetween(match, book, COMPARED);
             if (changes.length) plan.update.push({ id: match.id, book, name: match.name, author: match.author, changes });
             else plan.unchanged++;
-        } else if (!seenNew.has(rowKey(book))) {
-            seenNew.add(rowKey(book));
-            plan.add.push(book);
         } else {
-            plan.unchanged++;
+            plan.add.push(book);
         }
     }
     plan.categories = [...cats];

@@ -47,13 +47,15 @@ describe('rules', () => {
         rows.push(['الأم', 'الشافعي', 'فقه', '', '٨', '', '', '', '', 'C3', '', '']);
         rows.push(['الأم', 'الشافعي', 'فقه', '', '٨', '', '', '', '', 'C4', '', '']);
         const plan = planImport(rows, existing);
-        expect(plan.add.map((b) => b.name)).toEqual(['صحيح البخاري', 'بلا مؤلف', 'الأم', 'الأم']);
+        expect(plan.add.map((b) => b.name)).toEqual(['صحيح البخاري', 'بلا مؤلف', 'الأم']);
         expect(plan.add[2].parts).toBe(8);
+        // Same title + author + publisher later in the file: listed, not imported.
+        expect(plan.duplicates.map((b) => b.cabinet)).toEqual(['C3', 'C4']);
         expect(plan.categories).not.toContain('');
         expect(plan.update).toHaveLength(1);
         expect(plan.update[0].changes).toEqual([{ field: 'النسخ', old: 3, new: 7 }]);
         expect(plan.skipped).toBe(1);
-        expect(plan.unchanged).toBe(1);
+        expect(plan.unchanged).toBe(0);
     });
 
     it('filters books by status, category and free text', () => {
