@@ -130,9 +130,11 @@ export interface LibraryBackend {
         currentUser(): Promise<AuthUser | null>;
         signIn(email: string, password: string): Promise<AuthUser>;
         signOut(): Promise<void>;
-        onChange(cb: (user: AuthUser | null) => void): void;
+        onChange(cb: (user: AuthUser | null, recovery?: boolean) => void): void;
+        isPasswordRecovery(): boolean;
         updatePassword(newPassword: string): Promise<void>;
         sendPasswordReset(email: string, redirectTo: string): Promise<void>;
+        resetUserPassword(userId: string, password: string): Promise<void>;
     };
 
     profiles: {

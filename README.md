@@ -82,6 +82,12 @@ New accounts start as **pending** and see nothing until an admin grants a role i
 
 Book availability follows loans: a book is available until every copy is out. Status is never edited by hand.
 
+### Password recovery and admin resets
+
+The login screen sends a real Supabase recovery request. A valid recovery link opens a dedicated new-password form, including for pending users. Email delivery still depends on the hosted project's SMTP configuration and allowed redirect URLs; allow `https://kutubkhana.idarah786.com` in Authentication → URL Configuration.
+
+Admins can set a new password for a non-admin library member in Settings → Users → إعادة تعيين. Deploy `supabase/functions/admin-reset-password` with JWT verification enabled. The function checks the caller's current `ktb_profiles` role on the server, limits targets to library members, and protects admin accounts (admins change their own password under My account). The service-role key stays in the Edge Function environment. Passwords are neither logged nor stored in the library profile table; Supabase Auth manages their hashes.
+
 ## Android app
 
 The APK is a thin Capacitor shell that loads the live site (`server.url` in `capacitor.config.json`), so phones get every update automatically. Rebuild the APK only when the URL or Android settings change:

@@ -1,0 +1,20 @@
+# Deploy only the website source; keep device builds and private material local.
+.git/
+.vercel/
+.claude/
+.vscode/
+.playwright-mcp/
+.cache/
+.env*
+node_modules/
+dist/
+www/
+android/
+Kutubkhana-pics/
+Combined.xlsx
+scripts/
+supabase/
+docs/
+*.log
+*.tmp
+*.temp

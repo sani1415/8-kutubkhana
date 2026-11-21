@@ -50,6 +50,7 @@ export class LibraryRepository {
     user: AuthUser | null = null;
     profile: Profile | null = null;
     loaded = false;
+    recoveringPassword = false;
     /** True while showing the on-device copy and the server refresh has not finished. */
     stale = false;
     private saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -120,11 +121,16 @@ export class LibraryRepository {
 
     /** Resolve the current session and load data. Call once at startup. */
     async start(): Promise<void> {
-        this.backend.auth.onChange((user) => {
+        this.backend.auth.onChange((user, recovery) => {
+            const changed = this.recoveringPassword !== Boolean(recovery);
+            this.recoveringPassword = Boolean(recovery);
+            if (changed) this.emit('auth');
             if ((user?.id ?? null) === (this.user?.id ?? null)) return;
             void this.setUser(user);
         });
-        await this.setUser(await this.backend.auth.currentUser());
+        const user = await this.backend.auth.currentUser();
+        this.recoveringPassword = this.backend.auth.isPasswordRecovery();
+        await this.setUser(user);
     }
 
     private async setUser(user: AuthUser | null) {
@@ -170,9 +176,11 @@ export class LibraryRepository {
         await this.setUser(null);
     }
 
-    updatePassword(newPassword: string) {
+    async updatePassword(newPassword: string) {
         if (newPassword.length < 8) throw new ValidationError('كلمة المرور يجب أن تكون 8 أحرف على الأقل.');
-        return this.backend.auth.updatePassword(newPassword);
+        await this.backend.auth.updatePassword(newPassword);
+        this.recoveringPassword = false;
+        this.emit('auth');
     }
 
     sendPasswordReset(email: string, redirectTo: string) {
@@ -180,6 +188,12 @@ export class LibraryRepository {
     }
 
     listProfiles() { return this.backend.profiles.list(); }
+
+    resetUserPassword(userId: string, password: string) {
+        if (!this.isAdmin) throw new ValidationError('ليست لديك صلاحية لهذا الإجراء.');
+        if (password.length < 8) throw new ValidationError('كلمة المرور يجب أن تكون 8 أحرف على الأقل.');
+        return this.backend.auth.resetUserPassword(userId, password);
+    }
 
     async setRole(userId: string, role: Role) {
         const p = await this.backend.profiles.setRole(userId, role);

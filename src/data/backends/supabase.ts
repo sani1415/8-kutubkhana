@@ -117,6 +117,7 @@ async function run(q: PromiseLike<{ error: any }>): Promise<void> {
 }
 
 export function createSupabaseBackend(url: string, anonKey: string): LibraryBackend {
+    let recovery = typeof location !== 'undefined' && new URLSearchParams(location.hash.slice(1)).get('type') === 'recovery';
     const sb: SupabaseClient = createClient(url, anonKey);
 
     async function fetchAll(table: string, order = 'created_at'): Promise<Row[]> {
@@ -154,21 +155,35 @@ export function createSupabaseBackend(url: string, anonKey: string): LibraryBack
                 return mapUser(data.user)!;
             },
             async signOut() {
-                await sb.auth.signOut();
+                const { error } = await sb.auth.signOut();
+                if (error) throw new Error('تعذر تسجيل الخروج. تحقق من الاتصال وحاول مجدداً.');
             },
             onChange(cb) {
-                sb.auth.onAuthStateChange((_event, session) => {
+                sb.auth.onAuthStateChange((event, session) => {
+                    if (event === 'PASSWORD_RECOVERY') recovery = true;
+                    if (event === 'SIGNED_OUT') recovery = false;
                     // Defer: supabase-js deadlocks if we await other calls inside this callback.
-                    setTimeout(() => cb(mapUser(session?.user)), 0);
+                    setTimeout(() => cb(mapUser(session?.user), recovery), 0);
                 });
             },
+            isPasswordRecovery() { return recovery; },
             async updatePassword(newPassword) {
                 const { error } = await sb.auth.updateUser({ password: newPassword });
                 if (error) fail(error);
+                recovery = false;
             },
             async sendPasswordReset(email, redirectTo) {
                 const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
                 if (error) fail(error);
+            },
+            async resetUserPassword(userId, password) {
+                const { data, error } = await sb.functions.invoke('admin-reset-password', { body: { userId, password } });
+                if (error) {
+                    const response = (error as any).context;
+                    const body = response instanceof Response ? await response.json().catch(() => null) : null;
+                    throw new Error(body?.error || 'تعذر إعادة تعيين كلمة المرور. حاول مجدداً.');
+                }
+                if (!data?.success) throw new Error('تعذر إعادة تعيين كلمة المرور.');
             },
         },
 

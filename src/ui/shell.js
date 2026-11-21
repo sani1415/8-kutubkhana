@@ -14,6 +14,7 @@ export function startShell(root, repo) {
     let current = null; // { id, instance }
     let unsubscribe = null;
     let detach = () => {}; // root-level listeners of the current screen
+    let signingOut = false;
 
     const app = {
         repo,
@@ -33,6 +34,7 @@ export function startShell(root, repo) {
         current = null;
         detach();
         if (!repo.user) return renderLogin();
+        if (repo.recoveringPassword) return renderRecovery();
         if (!repo.hasAccess) return renderPending();
         renderLayout();
         route();
@@ -97,6 +99,30 @@ export function startShell(root, repo) {
         });
     }
 
+    function renderRecovery() {
+        document.body.dataset.screen = 'login';
+        setHtml(root, html`<main class="auth"><section class="auth__card">
+            <div class="auth__mark">${icon('key', 'duotone')}</div>
+            <h1 class="page-title">تعيين كلمة مرور جديدة</h1>
+            <p class="muted" dir="ltr">${repo.user.email}</p>
+            <form class="stack" data-action="recovery:save">
+                <label class="field"><span class="field__label">كلمة المرور الجديدة</span><input class="input" type="password" name="p1" minlength="8" autocomplete="new-password" dir="ltr" required></label>
+                <label class="field"><span class="field__label">تأكيد كلمة المرور</span><input class="input" type="password" name="p2" minlength="8" autocomplete="new-password" dir="ltr" required></label>
+                <button class="btn btn--primary btn--block" type="submit">حفظ كلمة المرور</button>
+                <button class="btn btn--link" type="button" data-action="recovery:cancel">إلغاء وتسجيل الخروج</button>
+            </form>
+        </section></main>`);
+        detach = delegate(root, {
+            'recovery:save': (form) => withBusy(form.querySelector('[type=submit]'), async () => {
+                const { p1, p2 } = formValues(form);
+                if (p1 !== p2) throw new Error('كلمتا المرور غير متطابقتين.');
+                await repo.updatePassword(p1);
+                toast('تم حفظ كلمة المرور الجديدة');
+            }),
+            'recovery:cancel': () => logout(),
+        }, ['click', 'submit']);
+    }
+
     function renderPending() {
         document.body.dataset.screen = 'login';
         setHtml(root, html`
@@ -112,7 +138,7 @@ export function startShell(root, repo) {
                 </section>
             </main>`);
         detach = delegate(root, {
-            'pending:out': () => repo.signOut(),
+            'pending:out': () => logout(),
             'pending:retry': () => location.reload(),
         });
     }
@@ -178,7 +204,31 @@ export function startShell(root, repo) {
     }
 
     async function logout() {
-        try { await repo.signOut(); } catch (err) { toastError(err); }
+        if (signingOut) return;
+        signingOut = true;
+        closeAllSheets();
+        const busy = document.createElement('dialog');
+        busy.className = 'logout-progress';
+        busy.setAttribute('aria-label', 'جارٍ تسجيل الخروج');
+        setHtml(busy, html`<div class="logout-progress__card" role="status" aria-live="polite">
+            <span class="logout-progress__spinner" aria-hidden="true"></span>
+            <h1 class="page-title">جارٍ تسجيل الخروج…</h1>
+            <p class="muted">يرجى الانتظار لحظة</p>
+        </div>`);
+        busy.addEventListener('cancel', (event) => event.preventDefault());
+        document.body.append(busy);
+        root.inert = true;
+        root.setAttribute('aria-busy', 'true');
+        busy.showModal();
+        try { await repo.signOut(); }
+        catch (err) { toastError(err); }
+        finally {
+            busy.close();
+            busy.remove();
+            root.inert = false;
+            root.removeAttribute('aria-busy');
+            signingOut = false;
+        }
     }
 
     function openMore() {
@@ -251,7 +301,7 @@ export function startShell(root, repo) {
     }
 
     function route() {
-        if (!repo.user || !repo.hasAccess) return;
+        if (!repo.user || !repo.hasAccess || repo.recoveringPassword) return;
         const { path, params } = parseHash();
         const page = Object.values(PAGES).find((p) => p.path === path) || PAGES.dashboard;
         if (!visible(page)) return app.go('/');

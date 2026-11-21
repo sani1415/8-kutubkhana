@@ -1,7 +1,7 @@
 import { html, raw, setHtml, delegate, $, formValues, todayIso, fmtNumber } from '../dom.js';
 import { icon } from '../icons.js';
 import { pageHeader } from '../components.js';
-import { confirmAction, toast, withBusy } from '../overlay.js';
+import { confirmAction, openSheet, toast, withBusy } from '../overlay.js';
 
 const ROLES = [
     ['admin', 'مدير', 'كل الصلاحيات وإدارة المستخدمين'],
@@ -76,6 +76,7 @@ export function mountSettings(host, app) {
                     <select class="input input--sm" data-action="set:role" data-id="${u.userId}" aria-label="الصلاحية" ${u.userId === repo.user.id ? raw('disabled title="لا يمكنك تغيير صلاحيتك"') : ''}>
                         ${ROLES.map(([k, l]) => html`<option value="${k}" ${u.role === k ? 'selected' : ''}>${l}</option>`)}
                     </select>
+                    ${u.role !== 'admin' ? html`<button class="btn btn--soft user__reset" data-action="set:user-password" data-id="${u.userId}" data-email="${u.email}">${icon('key')} إعادة تعيين</button>` : ''}
                 </li>`)}</ul>`);
         } catch (err) {
             setHtml(box, html`<p class="text-late">تعذر تحميل المستخدمين: ${err.message}</p>`);
@@ -101,6 +102,28 @@ export function mountSettings(host, app) {
     });
 
     const off = delegate(host, {
+        'set:user-password': (el) => openSheet({
+            title: 'إعادة تعيين كلمة المرور', size: 'sm',
+            body: html`<form class="stack" data-action="user-password:save" autocomplete="off">
+                <input type="hidden" name="username" autocomplete="username" value="${el.dataset.email}">
+                <p class="muted">كلمة مرور جديدة للمستخدم <b dir="ltr">${el.dataset.email}</b>. أخبره بها ليتمكن من الدخول، ثم يغيّرها من إعدادات حسابه.</p>
+                <label class="field"><span class="field__label">كلمة المرور الجديدة</span><input class="input" type="password" name="p1" minlength="8" maxlength="128" autocomplete="new-password" dir="ltr" required></label>
+                <label class="field"><span class="field__label">تأكيد كلمة المرور</span><input class="input" type="password" name="p2" minlength="8" maxlength="128" autocomplete="new-password" dir="ltr" required></label>
+                <div class="form-actions"><button class="btn btn--primary" type="submit">${icon('key')} حفظ كلمة المرور</button></div>
+            </form>`,
+            onMount(panel, close) {
+                delegate(panel, {
+                    'user-password:save': (form) => withBusy(form.querySelector('[type=submit]'), async () => {
+                        const { p1, p2 } = formValues(form);
+                        if (p1 !== p2) throw new Error('كلمتا المرور غير متطابقتين.');
+                        await repo.resetUserPassword(el.dataset.id, p1);
+                        form.reset();
+                        close();
+                        toast('تم تعيين كلمة المرور الجديدة', 'success', { detail: 'يمكن للمستخدم الدخول بها الآن.' });
+                    }),
+                }, ['submit']);
+            },
+        }),
         'set:password': (form) => withBusy(form.querySelector('[type=submit]'), async () => {
             const { p1, p2 } = formValues(form);
             if (p1 !== p2) throw new Error('كلمتا المرور غير متطابقتين.');

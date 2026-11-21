@@ -45,6 +45,28 @@
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+.logout-progress {
+    position: fixed; inset: 0; width: 100%; max-width: none;
+    height: 100%; height: 100dvh; max-height: none;
+    margin: 0; padding: var(--s-5); border: 0;
+    background: var(--bg); color: var(--ink);
+}
+.logout-progress[open] { display: grid; place-items: center; }
+.logout-progress__card {
+    width: min(100%, 360px); padding: var(--s-6) var(--s-5);
+    display: grid; justify-items: center; gap: var(--s-3); text-align: center;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-xl); box-shadow: var(--sh-2);
+}
+.logout-progress__card .page-title { font-size: var(--fs-xl); }
+.logout-progress__card p { margin: 0; }
+.logout-progress__spinner {
+    width: 32px; height: 32px; border: 3px solid var(--accent-tint);
+    border-top-color: var(--accent-deep); border-radius: 50%;
+    animation: spin .8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .logout-progress__spinner { animation: none; } }
+
 .icon-btn {
     display: inline-grid;
     place-items: center;

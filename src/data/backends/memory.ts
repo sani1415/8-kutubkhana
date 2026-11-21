@@ -66,8 +66,16 @@ export function createMemoryBackend(opts: MemoryOptions = {}): LibraryBackend {
             },
             async signOut() { user = null; authListeners.forEach((f) => f(null)); },
             onChange(cb) { authListeners.push(cb); },
+            isPasswordRecovery() { return false; },
             async updatePassword() { await tick(); },
             async sendPasswordReset() { await tick(); },
+            async resetUserPassword(userId, password) {
+                if (me()?.role !== 'admin') throw new Error('ليست لديك صلاحية لهذا الإجراء.');
+                const target = profiles.find((p) => p.userId === userId);
+                if (!target || target.role === 'admin') throw new Error('لا يمكن إعادة تعيين كلمة مرور هذا المستخدم.');
+                if (password.length < 8) throw new Error('كلمة المرور يجب أن تكون 8 أحرف على الأقل.');
+                await tick();
+            },
         },
 
         profiles: {
