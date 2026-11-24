@@ -284,6 +284,8 @@ const COMPARED: [keyof BookInput, string][] = [
 const COMPARED_BY_ID: [keyof BookInput, string][] = [
     ['name', 'اسم الكتاب'], ['author', 'المؤلف'], ['publisher', 'دار النشر'], ...COMPARED,
 ];
+/** Completing a title-only book may fill everything but the title. */
+const COMPLETED: [keyof BookInput, string][] = [['author', 'المؤلف'], ['publisher', 'دار النشر'], ...COMPARED];
 const REQUIRED: (keyof BookInput)[] = ['name'];
 
 function changesBetween(current: Book, next: BookInput, fields: [keyof BookInput, string][]): FieldChange[] {
@@ -297,10 +299,15 @@ function changesBetween(current: Book, next: BookInput, fields: [keyof BookInput
  * - Rows carrying an id (files exported from the app) update exactly that book.
  *   Any column may change; a missing column or a blank required cell keeps the
  *   current value, a blank optional cell clears it.
- * - Other rows match an existing book by title + author + publisher.
+ * - Other rows match an existing book by title + author + publisher. Failing
+ *   that, a row may complete a title-only book (blank or "-" author) with the
+ *   same title: the row's filled cells are written in, its blank cells keep
+ *   what the book has. Each such book is completed by one row at most; among
+ *   same-title books the one on the same cabinet/shelf is preferred.
  * - Rows without an id and without a title are skipped.
  * - A later row with the same title + author + publisher as an earlier row in
- *   the file is left out and listed in `duplicates`, so the preview can show it.
+ *   the file (and with no title-only book left to complete) is left out and
+ *   listed in `duplicates`, so the preview can show it.
  */
 export function planImport(rows: string[][], existing: Book[]): ImportPlan {
     const plan: ImportPlan = { add: [], update: [], unchanged: 0, skipped: 0, duplicates: [], categories: [], publishers: [] };
@@ -313,6 +320,14 @@ export function planImport(rows: string[][], existing: Book[]): ImportPlan {
     const byId = new Map(existing.map((b) => [b.id, b]));
     const byKey = new Map<string, Book>();
     for (const b of existing) byKey.set(bookKey(b, true), b);
+    // Title-only books (from an earlier names-only import), waiting to be completed.
+    const stubs = new Map<string, Book[]>();
+    for (const b of existing) {
+        if (!isBlank(b.author)) continue;
+        const k = foldText(b.name).trim();
+        stubs.set(k, [...(stubs.get(k) ?? []), b]);
+    }
+    const claimed = new Set<string>();
     const seenNew = new Set<string>();
     const seenIds = new Set<string>();
     const cats = new Set<string>();
@@ -355,18 +370,41 @@ export function planImport(rows: string[][], existing: Book[]): ImportPlan {
         if (book.publisher) pubs.add(book.publisher);
 
         const key = bookKey(book, true);
-        if (seenNew.has(key)) { plan.duplicates.push(book); continue; }
-        seenNew.add(key);
         const match = byKey.get(key);
-        if (match) {
+        if (match && !claimed.has(match.id)) {
+            claimed.add(match.id);
+            seenNew.add(key);
             const changes = changesBetween(match, book, COMPARED);
             if (changes.length) plan.update.push({ id: match.id, book, name: match.name, author: match.author, changes });
             else plan.unchanged++;
-        } else {
-            plan.add.push(book);
+            continue;
         }
+        const stub = completes(book);
+        if (stub) {
+            claimed.add(stub.id);
+            seenNew.add(key);
+            // Fill in: blank cells in the row keep the book's current value.
+            const filled = normalizeBookInput(Object.fromEntries(
+                (Object.keys(book) as (keyof BookInput)[]).map((f) => [f, isBlank(book[f]) ? stub[f] : book[f]]),
+            ));
+            const changes = changesBetween(stub, filled, COMPLETED);
+            if (changes.length) plan.update.push({ id: stub.id, book: filled, name: stub.name, author: stub.author, changes });
+            else plan.unchanged++;
+            continue;
+        }
+        // Same title + author + publisher as an earlier row or an already-matched book.
+        if (seenNew.has(key)) { plan.duplicates.push(book); continue; }
+        seenNew.add(key);
+        plan.add.push(book);
     }
     plan.categories = [...cats];
     plan.publishers = [...pubs];
     return plan;
+
+    /** An unclaimed title-only book this row can complete, preferring the same cabinet and shelf. */
+    function completes(book: BookInput): Book | undefined {
+        const pool = (stubs.get(foldText(book.name).trim()) ?? []).filter((b) => !claimed.has(b.id));
+        const same = (f: 'cabinet' | 'shelf') => (b: Book) => foldText(b[f]).trim() === foldText(book[f]).trim();
+        return pool.find((b) => same('cabinet')(b) && same('shelf')(b)) ?? pool.find(same('cabinet')) ?? pool[0];
+    }
 }

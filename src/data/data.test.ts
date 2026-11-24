@@ -134,6 +134,21 @@ describe('export → fill in → import round trip', () => {
         expect(plan.update[0].changes.map((c) => c.field)).toEqual(['الصندوق']);
     });
 
+    it('completes title-only books instead of adding copies', () => {
+        const base = existing[0];
+        const stub = (id: string, cabinet: string) => ({ ...base, id, name: 'الأم', author: '-', publisher: '-', category: '-', editor: '', cabinet, shelf: '' });
+        const books = [...existing, stub('s1', 'C3'), stub('s2', 'C9')] as Book[];
+        const rows = parseCSV(CSV_TEMPLATE).slice(0, 1);
+        rows.push(['الأم', 'الشافعي', 'فقه', '', '٨', 'دار الوفاء', '', '', '', 'C9', '', '']);
+        rows.push(['الام', 'الشافعي', 'فقه', '', '', 'دار الوفاء', '', '', '', 'C3', '', '']);
+        rows.push(['الأم', 'الشافعي', 'فقه', '', '', 'دار الوفاء', '', '', '', 'C5', '', '']);
+        const plan = planImport(rows, books);
+        expect(plan.add).toHaveLength(0);
+        expect(plan.update.map((u) => u.id)).toEqual(['s2', 's1']);
+        expect(plan.update[0].book).toMatchObject({ name: 'الأم', author: 'الشافعي', publisher: 'دار الوفاء', category: 'فقه', parts: 8, cabinet: 'C9' });
+        expect(plan.duplicates.map((b) => b.cabinet)).toEqual(['C5']);
+    });
+
     it('can fix a title through its id', () => {
         const target = existing[0];
         const rows = booksToRows([target]);
